@@ -1,0 +1,1986 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package com.commerce.backend.service;
+@Service
+public class UserServiceImpl implements UserService {
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final UserResponseConverter userResponseConverter;
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           UserResponseConverter userResponseConverter) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.userResponseConverter = userResponseConverter;
+    }
+    @Override
+    public User register(RegisterUserRequest registerUserRequest) {
+        if (userExists(registerUserRequest.getEmail())) {
+            throw new InvalidArgumentException("An account already exists with this email");
+        }
+
+        User user = new User();
+        user.setEmail(registerUserRequest.getEmail());
+        user.setPassword(passwordEncoder.encode(registerUserRequest.getPassword()));
+        user.setEmailVerified(0);
+
+        return userRepository.save(user);
+    }
+    @Override
+    public UserResponse fetchUser() {
+        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (Objects.isNull(userName)) {
+            throw new AccessDeniedException("Invalid access");
+        }
+
+        Optional<User> user = userRepository.findByEmail(userName);
+        if (user.isEmpty()) {
+            throw new ResourceNotFoundException("User not found");
+        }
+        return userResponseConverter.apply(user.get());
+    }
+    @Override
+    public User getUser() {
+        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (Objects.isNull(userName)) {
+            throw new AccessDeniedException("Invalid access");
+        }
+
+        Optional<User> user = userRepository.findByEmail(userName);
+        if (user.isEmpty()) {
+            throw new ResourceNotFoundException("User not found");
+        }
+        return user.get();
+    }
+    @Override
+    public User saveUser(User user) {
+        if (Objects.isNull(user)) {
+            throw new InvalidArgumentException("Null user");
+        }
+
+        return userRepository.save(user);
+    }
+    @Override
+    public User findByEmail(String email) {
+        if (Objects.isNull(email)) {
+            throw new InvalidArgumentException("Null email");
+        }
+
+        return userRepository.findByEmail(email).orElse(null);
+    }
+    @Override
+    public boolean userExists(String email) {
+        return userRepository.existsByEmail(email);
+    }
+    @Override
+    public UserResponse updateUser(UpdateUserRequest updateUserRequest) {
+        User user = getUser();
+        user.setFirstName(updateUserRequest.getFirstName());
+        user.setLastName(updateUserRequest.getLastName());
+        user.setPhone(updateUserRequest.getPhone());
+
+        user = userRepository.save(user);
+        return userResponseConverter.apply(user);
+    }
+    @Override
+    public UserResponse updateUserAddress(UpdateUserAddressRequest updateUserAddressRequest) {
+        User user = getUser();
+        user.setAddress(updateUserAddressRequest.getAddress());
+        user.setCity(updateUserAddressRequest.getCity());
+        user.setState(updateUserAddressRequest.getState());
+        user.setZip(updateUserAddressRequest.getZip());
+        user.setCountry(updateUserAddressRequest.getCountry());
+
+        user = userRepository.save(user);
+        return userResponseConverter.apply(user);
+    }
+    @Override
+    public void resetPassword(PasswordResetRequest passwordResetRequest) {
+        User user = getUser();
+        if (!passwordEncoder.matches(passwordResetRequest.getOldPassword(), user.getPassword())) {
+            throw new InvalidArgumentException("Invalid password");
+        }
+
+        if (passwordEncoder.matches(passwordResetRequest.getNewPassword(), user.getPassword())) {
+            return;
+        }
+
+        user.setPassword(passwordEncoder.encode(passwordResetRequest.getNewPassword()));
+        userRepository.save(user);
+    }
+    @Override
+    public Boolean getVerificationStatus() {
+        User user = getUser();
+        return user.getEmailVerified() == 1;
+    }
+}
+
+**Test scenarios (12 total):**
+0) Verify that a new user is successfully registered when a unique email is provided
+Steps: Given a registration request with a valid email and password that do not exist in the system
+When a new user registration is attempted using the valid request data
+Then the system should encode the user's password
+And the system should create and save a new user with the email verification status set to not verified
+And the newly saved user should be returned
+
+1) Verify that registration fails when an account with the same email already exists
+Steps: Given a registration request for a new user with an email that is already registered in the system
+When a new user registration is attempted using duplicate email data
+Then the system should reject the registration
+And the system should throw an error indicating that an account already exists with this email
+
+2) Verify that authenticated user details are successfully fetched
+Steps: Given that a valid user email is stored in the security context and the corresponding user exists in the repository
+When the system requests to fetch the current user details
+Then the system should retrieve the user from the repository
+And convert the user entity into a user response containing profile information
+
+3) Verify that fetching user details fails when there is no authenticated user in the context
+Steps: Given that the security context does not have a username available
+When an attempt is made to fetch user details
+Then the system should deny access
+And an access denied error should be thrown
+
+4) Verify that fetching user details fails when the authenticated user is not found in the repository
+Steps: Given an authenticated user email is present in the security context but no user exists with that email in the repository
+When the system attempts to fetch the user details based on the security context
+Then the system should throw a resource not found error indicating that the user does not exist
+
+5) Verify that a valid user entity is successfully saved into the repository
+Steps: Given a valid user entity with the required user information
+When the system attempts to save the user entity
+Then the repository should store the user
+And the system should return the saved user entity
+
+6) Verify that saving a null user entity results in an error
+Steps: Given a null user entity as input
+When the system attempts to save the null user
+Then the system should throw an error indicating that a null user cannot be saved
+
+7) Verify that a user is found by email when the email exists in the repository
+Steps: Given a valid email known to be associated with an existing user in the repository
+When the system searches for the user using that email
+Then the system should retrieve and return the corresponding user entity
+
+8) Verify that searching for a user by email returns null when no matching user exists
+Steps: Given a valid email that does not correspond to any user in the repository
+When the system searches for a user using the provided email
+Then the system should return null indicating that no user was found
+
+9) Verify that an authenticated user's profile details are successfully updated with new information
+Steps: Given an authenticated user with existing profile details present in the repository
+And a valid update request containing new first name, last name, and phone number
+When the system processes the user update request
+Then the system should update the user's first name, last name, and phone number in the repository
+And return an updated user response reflecting the new profile details
+
+10) Verify that an authenticated user's address information is successfully updated with new address details
+Steps: Given an authenticated user with current address details in the repository
+And a valid address update request containing new address, city, state, zip, and country information
+When the system processes the update request for the user's address
+Then the system should update the user's address fields in the repository accordingly
+And return an updated user response reflecting the new address details
+
+11) Verify that attempting to reset the password with a new password identical to the current one does not update the user's password
+Steps: Given an authenticated user with a stored encoded password and a valid password reset request containing the correct old password
+And the new password provided in the request matches the current encoded password
+When the system processes the password reset request
+Then the system should validate the old password successfully
+And determine that the new password is identical to the current password
+And refrain from updating the user's password
+
+
+
+**Context parts (0-31):**
+
+=== Part 0 ===
+package com.commerce.backend.dao;
+@Repository
+public interface UserRepository extends CrudRepository<User, Long> {
+    Optional<User> findByEmail(String email)
+    Boolean existsByEmail(String email)
+}
+
+=== Part 1 ===
+package org.springframework.security.crypto.password;
+public interface PasswordEncoder {
+    java.lang.String encode(java.lang.CharSequence charSequence)
+    boolean matches(java.lang.CharSequence charSequence, java.lang.String s)
+}
+
+=== Part 2 ===
+package com.commerce.backend.converter.user;
+@Component
+public class UserResponseConverter implements Function<User, UserResponse> {
+    @Override
+    public UserResponse apply(User user) {
+        UserResponse userResponse = new UserResponse();
+        userResponse.setEmail(user.getEmail());
+        userResponse.setFirstName(user.getFirstName());
+        userResponse.setLastName(user.getLastName());
+        userResponse.setAddress(user.getAddress());
+        userResponse.setCity(user.getCity());
+        userResponse.setState(user.getState());
+        userResponse.setZip(user.getZip());
+        userResponse.setPhone(user.getPhone());
+        userResponse.setCountry(user.getCountry());
+        userResponse.setEmailVerified(user.getEmailVerified());
+        return userResponse;
+    }
+}
+
+=== Part 3 ===
+Class `com.commerce.backend.model.request.user.RegisterUserRequest` declaration:
+@PasswordMatches
+public class RegisterUserRequest
+The class has following members:
+public methods:
+- RegisterUserRequest()
+- void setEmail(String email)
+- void setPassword(String password)
+- void setPasswordRepeat(String passwordRepeat)
+fields:
+- @NotBlank
+    @Size(min = 3, max = 52)
+    @CustomEmail
+    private String email;
+- @NotBlank
+    @Size(min = 6, max = 52)
+    private String password;
+
+
+=== Part 4 ===
+Class `com.commerce.backend.model.entity.User` declaration:
+@Entity
+@Table(name = "user")
+public class User
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Cart
+The class has following members:
+public methods:
+- User()
+- void setId(Long id)
+- void setCart(Cart cart)
+- void setEmail(String email)
+- void setPassword(String password)
+- void setFirstName(String firstName)
+- void setLastName(String lastName)
+- void setCity(String city)
+- void setState(String state)
+- void setZip(String zip)
+- void setEmailVerified(Integer emailVerified)
+- void setRegistrationDate(Date registrationDate)
+- void setPhone(String phone)
+- void setCountry(String country)
+- void setAddress(String address)
+- Long getId()
+- Cart getCart()
+- String getEmail()
+- String getPassword()
+- String getFirstName()
+- String getLastName()
+- String getCity()
+- String getState()
+- String getZip()
+- Integer getEmailVerified()
+- Date getRegistrationDate()
+- String getPhone()
+- String getCountry()
+- String getAddress()
+fields:
+- @Column(name = "email")
+    private String email;
+- @Column(name = "password")
+    private String password;
+- @Column(name = "email_verified")
+    private Integer emailVerified;
+- @Column(name = "first_name")
+    private String firstName;
+- @Column(name = "last_name")
+    private String lastName;
+- @Column(name = "phone")
+    private String phone;
+- @Column(name = "address")
+    private String address;
+- @Column(name = "city")
+    private String city;
+- @Column(name = "state")
+    private String state;
+- @Column(name = "zip")
+    private String zip;
+- @Column(name = "country")
+    private String country;
+
+
+=== Part 5 ===
+Class `com.commerce.backend.model.request.user.UpdateUserRequest` declaration:
+public class UpdateUserRequest
+The class has following members:
+public methods:
+- UpdateUserRequest()
+- void setFirstName(String firstName)
+- void setLastName(String lastName)
+- void setPhone(String phone)
+fields:
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 26)
+    private String firstName;
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 26)
+    private String lastName;
+- @Pattern(regexp = "[0-9]+")
+    @Size(min = 11, max = 12)
+    private String phone;
+
+
+=== Part 6 ===
+Class `com.commerce.backend.model.request.user.UpdateUserAddressRequest` declaration:
+public class UpdateUserAddressRequest
+The class has following members:
+public methods:
+- UpdateUserAddressRequest()
+- void setCity(String city)
+- void setState(String state)
+- void setZip(String zip)
+- void setCountry(String country)
+- void setAddress(String address)
+fields:
+- @Pattern(regexp = "[0-9a-zA-Z #,-]+")
+    @Size(min = 3, max = 240)
+    private String address;
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 100)
+    private String city;
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 40)
+    private String state;
+- @Pattern(regexp = "^[0-9]*$")
+    @Size(min = 5, max = 6)
+    private String zip;
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 40)
+    private String country;
+
+
+=== Part 7 ===
+Class `com.commerce.backend.model.request.user.PasswordResetRequest` declaration:
+@PasswordMatches
+public class PasswordResetRequest
+The class has following members:
+public methods:
+- PasswordResetRequest()
+- void setOldPassword(String oldPassword)
+- void setNewPassword(String newPassword)
+- void setNewPasswordConfirm(String newPasswordConfirm)
+fields:
+- @NotBlank
+    @Size(min = 6, max = 52)
+    private String oldPassword;
+- @NotBlank
+    @Size(min = 6, max = 52)
+    private String newPassword;
+
+
+=== Part 8 ===
+Class `com.commerce.backend.model.entity.Cart` declaration:
+@Entity
+@Table(name = "cart")
+public class Cart
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Discount, CartItem, User
+The class has following members:
+public methods:
+- Cart()
+- void setId(Long id)
+- void setUser(User user)
+- void setCartItemList(List<CartItem> cartItemList)
+- void setDiscount(Discount discount)
+- void setTotalCartPrice(Float totalCartPrice)
+- void setTotalCargoPrice(Float totalCargoPrice)
+- void setTotalPrice(Float totalPrice)
+- void setDateCreated(Date dateCreated)
+- Long getId()
+- User getUser()
+- List<CartItem> getCartItemList()
+- Discount getDiscount()
+- Float getTotalCartPrice()
+- Float getTotalCargoPrice()
+- Float getTotalPrice()
+- Date getDateCreated()
+
+
+=== Part 9 ===
+Class `CartItem` declaration:
+@Entity
+@Table(name = "cart_item")
+public class CartItem
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant, Cart
+The class has following members:
+public methods:
+- CartItem()
+- void setId(Long id)
+- void setCart(Cart cart)
+- void setProductVariant(ProductVariant productVariant)
+- void setAmount(Integer amount)
+- Long getId()
+- Cart getCart()
+- ProductVariant getProductVariant()
+- Integer getAmount()
+
+
+=== Part 10 ===
+Class `com.commerce.backend.model.entity.Discount` declaration:
+@Entity
+@Table(name = "discount")
+public class Discount
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Cart, Order
+The class has following members:
+public methods:
+- Discount()
+- void setId(Long id)
+- void setOrderList(List<Order> orderList)
+- void setCartList(List<Cart> cartList)
+- void setCode(String code)
+- void setDiscountPercent(Integer discountPercent)
+- void setStatus(Integer status)
+- Long getId()
+- List<Order> getOrderList()
+- List<Cart> getCartList()
+- String getCode()
+- Integer getDiscountPercent()
+- Integer getStatus()
+
+
+=== Part 11 ===
+Class `ProductVariant` declaration:
+@Entity
+@Table(name = "product_variant")
+public class ProductVariant
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Color, Product
+The class has following members:
+public methods:
+- ProductVariant()
+- void setId(Long id)
+- void setProduct(Product product)
+- void setColor(Color color)
+- void setWidth(String width)
+- void setHeight(String height)
+- void setComposition(String composition)
+- void setPrice(Float price)
+- void setCargoPrice(Float cargoPrice)
+- void setTaxPercent(Float taxPercent)
+- void setImage(String image)
+- void setThumb(String thumb)
+- void setStock(Integer stock)
+- void setSellCount(Integer sellCount)
+- void setLive(Integer live)
+- Long getId()
+- Product getProduct()
+- Color getColor()
+- String getWidth()
+- String getHeight()
+- String getComposition()
+- Float getPrice()
+- Float getCargoPrice()
+- Float getTaxPercent()
+- String getImage()
+- String getThumb()
+- Integer getStock()
+- Integer getSellCount()
+- Integer getLive()
+
+
+=== Part 12 ===
+Class `com.commerce.backend.model.entity.Order` declaration:
+@Entity
+@Table(name = "orders")
+public class Order
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Discount, OrderDetail, User
+The class has following members:
+public methods:
+- Order()
+- void setId(Long id)
+- void setUser(User user)
+- void setOrderDetailList(List<OrderDetail> orderDetailList)
+- void setDiscount(Discount discount)
+- void setShipName(String shipName)
+- void setShipAddress(String shipAddress)
+- void setBillingAddress(String billingAddress)
+- void setCity(String city)
+- void setState(String state)
+- void setZip(String zip)
+- void setCountry(String country)
+- void setPhone(String phone)
+- void setTotalPrice(Float totalPrice)
+- void setTotalCargoPrice(Float totalCargoPrice)
+- void setDate(Date date)
+- void setShipped(Integer shipped)
+- void setCargoFirm(String cargoFirm)
+- void setTrackingNumber(String trackingNumber)
+- Long getId()
+- User getUser()
+- List<OrderDetail> getOrderDetailList()
+- Discount getDiscount()
+- String getShipName()
+- String getShipAddress()
+- String getBillingAddress()
+- String getCity()
+- String getState()
+- String getZip()
+- String getCountry()
+- String getPhone()
+- Float getTotalPrice()
+- Float getTotalCargoPrice()
+- Date getDate()
+- Integer getShipped()
+- String getCargoFirm()
+- String getTrackingNumber()
+
+
+=== Part 13 ===
+Class `com.commerce.backend.model.entity.Product` declaration:
+@Entity
+@Table(name = "product")
+public class Product
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant, ProductCategory
+The class has following members:
+public methods:
+- Product()
+- void setId(Long id)
+- void setProductCategory(ProductCategory productCategory)
+- void setProductVariantList(List<ProductVariant> productVariantList)
+- void setSku(String sku)
+- void setName(String name)
+- void setUrl(String url)
+- void setLongDesc(String longDesc)
+- void setDateCreated(Date dateCreated)
+- void setLastUpdated(Date lastUpdated)
+- void setUnlimited(Integer unlimited)
+- Long getId()
+- ProductCategory getProductCategory()
+- List<ProductVariant> getProductVariantList()
+- String getSku()
+- String getName()
+- String getUrl()
+- String getLongDesc()
+- Date getDateCreated()
+- Date getLastUpdated()
+- Integer getUnlimited()
+
+
+=== Part 14 ===
+Class `com.commerce.backend.model.entity.Color` declaration:
+@Entity
+@Table(name = "color")
+public class Color
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant
+The class has following members:
+public methods:
+- Color()
+- void setId(Long id)
+- void setProductVariantList(List<ProductVariant> productVariantList)
+- void setName(String name)
+- void setHex(String hex)
+- Long getId()
+- List<ProductVariant> getProductVariantList()
+- String getName()
+- String getHex()
+
+
+=== Part 15 ===
+Class `OrderDetail` declaration:
+@Entity
+@Table(name = "order_detail")
+public class OrderDetail
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant, Order
+The class has following members:
+public methods:
+- OrderDetail()
+- void setId(Long id)
+- void setOrder(Order order)
+- void setProductVariant(ProductVariant productVariant)
+- void setAmount(Integer amount)
+- Long getId()
+- Order getOrder()
+- ProductVariant getProductVariant()
+- Integer getAmount()
+
+
+=== Part 16 ===
+Class `com.commerce.backend.model.entity.ProductCategory` declaration:
+@Entity
+@Table(name = "product_category")
+public class ProductCategory
+The class has following members:
+public methods:
+- ProductCategory()
+- void setId(Long id)
+- void setName(String name)
+- Long getId()
+- String getName()
+
+
+=== Part 17 ===
+package com.commerce.backend.service;
+public interface UserService {
+    User getUser()
+    Boolean getVerificationStatus()
+}
+
+=== Part 18 ===
+Class `com.commerce.backend.model.response.user.UserResponse` declaration:
+public class UserResponse
+The class has following members:
+public methods:
+- String getEmail()
+- String getFirstName()
+- String getLastName()
+- String getAddress()
+- String getCity()
+- String getState()
+- String getZip()
+- String getPhone()
+- String getCountry()
+- Integer getEmailVerified()
+fields:
+- private String email;
+- private String firstName;
+- private String lastName;
+- private String address;
+- private String city;
+- private String state;
+- private String zip;
+- private String phone;
+- private String country;
+- private Integer emailVerified;
+
+
+=== Part 19 ===
+package com.commerce.backend.error.exception;
+public class InvalidArgumentException extends RuntimeException {
+    public InvalidArgumentException(String s) { super(s); }
+}
+
+=== Part 20 ===
+package org.springframework.security.core.context;
+public interface SecurityContext extends java.io.Serializable {
+    org.springframework.security.core.Authentication getAuthentication()
+}
+
+=== Part 21 ===
+package org.springframework.security.core.context;
+public class SecurityContextHolder {
+    public static org.springframework.security.core.context.SecurityContext getContext()
+}
+
+=== Part 22 ===
+package org.springframework.security.access;
+public class AccessDeniedException extends java.lang.RuntimeException {
+    public AccessDeniedException(java.lang.String msg)
+}
+
+=== Part 23 ===
+package com.commerce.backend.error.exception;
+public class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String s) { super(s); }
+}
+
+=== Part 24 ===
+package javax.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 25 ===
+package javax.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 26 ===
+package com.commerce.backend.validator;
+@Target({TYPE, ANNOTATION_TYPE})
+@Retention(RUNTIME)
+@Constraint(validatedBy = PasswordMatchesValidator.class)
+@Documented
+public @interface PasswordMatches {
+}
+
+=== Part 27 ===
+package com.commerce.backend.validator;
+@Target({TYPE, FIELD, ANNOTATION_TYPE})
+@Retention(RUNTIME)
+@Constraint(validatedBy = CustomEmailValidator.class)
+@Documented
+public @interface CustomEmail {
+}
+
+=== Part 28 ===
+package javax.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Column {
+    java.lang.String name() default ""
+}
+
+=== Part 29 ===
+package org.springframework.security.core;
+public interface Authentication extends java.security.Principal, java.io.Serializable {
+}
+
+=== Part 30 ===
+package com.commerce.backend.validator;
+public class PasswordMatchesValidator implements ConstraintValidator<PasswordMatches, Object> {
+}
+
+=== Part 31 ===
+package com.commerce.backend.validator;
+public class CustomEmailValidator implements ConstraintValidator<CustomEmail, String> {
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package com.commerce.backend.service;
+@Service
+public class UserServiceImpl implements UserService {
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final UserResponseConverter userResponseConverter;
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           UserResponseConverter userResponseConverter) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.userResponseConverter = userResponseConverter;
+    }
+    @Override
+    public User register(RegisterUserRequest registerUserRequest) {
+        if (userExists(registerUserRequest.getEmail())) {
+            throw new InvalidArgumentException("An account already exists with this email");
+        }
+
+        User user = new User();
+        user.setEmail(registerUserRequest.getEmail());
+        user.setPassword(passwordEncoder.encode(registerUserRequest.getPassword()));
+        user.setEmailVerified(0);
+
+        return userRepository.save(user);
+    }
+    @Override
+    public UserResponse fetchUser() {
+        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (Objects.isNull(userName)) {
+            throw new AccessDeniedException("Invalid access");
+        }
+
+        Optional<User> user = userRepository.findByEmail(userName);
+        if (user.isEmpty()) {
+            throw new ResourceNotFoundException("User not found");
+        }
+        return userResponseConverter.apply(user.get());
+    }
+    @Override
+    public User getUser() {
+        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (Objects.isNull(userName)) {
+            throw new AccessDeniedException("Invalid access");
+        }
+
+        Optional<User> user = userRepository.findByEmail(userName);
+        if (user.isEmpty()) {
+            throw new ResourceNotFoundException("User not found");
+        }
+        return user.get();
+    }
+    @Override
+    public User saveUser(User user) {
+        if (Objects.isNull(user)) {
+            throw new InvalidArgumentException("Null user");
+        }
+
+        return userRepository.save(user);
+    }
+    @Override
+    public User findByEmail(String email) {
+        if (Objects.isNull(email)) {
+            throw new InvalidArgumentException("Null email");
+        }
+
+        return userRepository.findByEmail(email).orElse(null);
+    }
+    @Override
+    public boolean userExists(String email) {
+        return userRepository.existsByEmail(email);
+    }
+    @Override
+    public UserResponse updateUser(UpdateUserRequest updateUserRequest) {
+        User user = getUser();
+        user.setFirstName(updateUserRequest.getFirstName());
+        user.setLastName(updateUserRequest.getLastName());
+        user.setPhone(updateUserRequest.getPhone());
+
+        user = userRepository.save(user);
+        return userResponseConverter.apply(user);
+    }
+    @Override
+    public UserResponse updateUserAddress(UpdateUserAddressRequest updateUserAddressRequest) {
+        User user = getUser();
+        user.setAddress(updateUserAddressRequest.getAddress());
+        user.setCity(updateUserAddressRequest.getCity());
+        user.setState(updateUserAddressRequest.getState());
+        user.setZip(updateUserAddressRequest.getZip());
+        user.setCountry(updateUserAddressRequest.getCountry());
+
+        user = userRepository.save(user);
+        return userResponseConverter.apply(user);
+    }
+    @Override
+    public void resetPassword(PasswordResetRequest passwordResetRequest) {
+        User user = getUser();
+        if (!passwordEncoder.matches(passwordResetRequest.getOldPassword(), user.getPassword())) {
+            throw new InvalidArgumentException("Invalid password");
+        }
+
+        if (passwordEncoder.matches(passwordResetRequest.getNewPassword(), user.getPassword())) {
+            return;
+        }
+
+        user.setPassword(passwordEncoder.encode(passwordResetRequest.getNewPassword()));
+        userRepository.save(user);
+    }
+    @Override
+    public Boolean getVerificationStatus() {
+        User user = getUser();
+        return user.getEmailVerified() == 1;
+    }
+}
+
+**Test scenarios (12 total):**
+0) Verify that a new user is successfully registered when a unique email is provided
+Steps: Given a registration request with a valid email and password that do not exist in the system
+When a new user registration is attempted using the valid request data
+Then the system should encode the user's password
+And the system should create and save a new user with the email verification status set to not verified
+And the newly saved user should be returned
+
+1) Verify that registration fails when an account with the same email already exists
+Steps: Given a registration request for a new user with an email that is already registered in the system
+When a new user registration is attempted using duplicate email data
+Then the system should reject the registration
+And the system should throw an error indicating that an account already exists with this email
+
+2) Verify that authenticated user details are successfully fetched
+Steps: Given that a valid user email is stored in the security context and the corresponding user exists in the repository
+When the system requests to fetch the current user details
+Then the system should retrieve the user from the repository
+And convert the user entity into a user response containing profile information
+
+3) Verify that fetching user details fails when there is no authenticated user in the context
+Steps: Given that the security context does not have a username available
+When an attempt is made to fetch user details
+Then the system should deny access
+And an access denied error should be thrown
+
+4) Verify that fetching user details fails when the authenticated user is not found in the repository
+Steps: Given an authenticated user email is present in the security context but no user exists with that email in the repository
+When the system attempts to fetch the user details based on the security context
+Then the system should throw a resource not found error indicating that the user does not exist
+
+5) Verify that a valid user entity is successfully saved into the repository
+Steps: Given a valid user entity with the required user information
+When the system attempts to save the user entity
+Then the repository should store the user
+And the system should return the saved user entity
+
+6) Verify that saving a null user entity results in an error
+Steps: Given a null user entity as input
+When the system attempts to save the null user
+Then the system should throw an error indicating that a null user cannot be saved
+
+7) Verify that a user is found by email when the email exists in the repository
+Steps: Given a valid email known to be associated with an existing user in the repository
+When the system searches for the user using that email
+Then the system should retrieve and return the corresponding user entity
+
+8) Verify that searching for a user by email returns null when no matching user exists
+Steps: Given a valid email that does not correspond to any user in the repository
+When the system searches for a user using the provided email
+Then the system should return null indicating that no user was found
+
+9) Verify that an authenticated user's profile details are successfully updated with new information
+Steps: Given an authenticated user with existing profile details present in the repository
+And a valid update request containing new first name, last name, and phone number
+When the system processes the user update request
+Then the system should update the user's first name, last name, and phone number in the repository
+And return an updated user response reflecting the new profile details
+
+10) Verify that an authenticated user's address information is successfully updated with new address details
+Steps: Given an authenticated user with current address details in the repository
+And a valid address update request containing new address, city, state, zip, and country information
+When the system processes the update request for the user's address
+Then the system should update the user's address fields in the repository accordingly
+And return an updated user response reflecting the new address details
+
+11) Verify that attempting to reset the password with a new password identical to the current one does not update the user's password
+Steps: Given an authenticated user with a stored encoded password and a valid password reset request containing the correct old password
+And the new password provided in the request matches the current encoded password
+When the system processes the password reset request
+Then the system should validate the old password successfully
+And determine that the new password is identical to the current password
+And refrain from updating the user's password
+
+
+
+**Context parts (0-63):**
+
+=== Part 0 ===
+package javax.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 1 ===
+Class `com.commerce.backend.model.entity.Color` declaration:
+@Entity
+@Table(name = "color")
+public class Color
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant
+The class has following members:
+public methods:
+- Color()
+- void setId(Long id)
+- void setProductVariantList(List<ProductVariant> productVariantList)
+- void setName(String name)
+- void setHex(String hex)
+- Long getId()
+- List<ProductVariant> getProductVariantList()
+- String getName()
+- String getHex()
+
+
+=== Part 2 ===
+package com.commerce.backend.validator;
+public class CustomEmailValidator implements ConstraintValidator<CustomEmail, String> {
+}
+
+=== Part 3 ===
+Class `com.commerce.backend.model.request.user.UpdateUserRequest` declaration:
+public class UpdateUserRequest
+The class has following members:
+public methods:
+- UpdateUserRequest()
+- void setFirstName(String firstName)
+- void setLastName(String lastName)
+- void setPhone(String phone)
+fields:
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 26)
+    private String firstName;
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 26)
+    private String lastName;
+- @Pattern(regexp = "[0-9]+")
+    @Size(min = 11, max = 12)
+    private String phone;
+
+
+=== Part 4 ===
+package org.springframework.data.jpa.repository;
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.ANNOTATION_TYPE})
+@org.springframework.data.annotation.QueryAnnotation
+@java.lang.annotation.Documented
+public @interface Query {
+    java.lang.String value() default ""
+}
+
+=== Part 5 ===
+package com.commerce.backend.converter.user;
+@Component
+public class UserResponseConverter implements Function<User, UserResponse> {
+    @Override
+    public UserResponse apply(User user) {
+        UserResponse userResponse = new UserResponse();
+        userResponse.setEmail(user.getEmail());
+        userResponse.setFirstName(user.getFirstName());
+        userResponse.setLastName(user.getLastName());
+        userResponse.setAddress(user.getAddress());
+        userResponse.setCity(user.getCity());
+        userResponse.setState(user.getState());
+        userResponse.setZip(user.getZip());
+        userResponse.setPhone(user.getPhone());
+        userResponse.setCountry(user.getCountry());
+        userResponse.setEmailVerified(user.getEmailVerified());
+        return userResponse;
+    }
+}
+
+=== Part 6 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "openshift", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using OpenShift.", description = "%n"
+        + "This command will build or push a container image for the project, using Openshift.", footer = "%n"
+                + "For example (using default values), it will create a container image in OpenShift using the docker build strategy with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Openshift extends BaseImageSubCommand implements Callable<Integer> {
+}
+
+=== Part 7 ===
+Class `ProductVariant` declaration:
+@Entity
+@Table(name = "product_variant")
+public class ProductVariant
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Color, Product
+The class has following members:
+public methods:
+- ProductVariant()
+- void setId(Long id)
+- void setProduct(Product product)
+- void setColor(Color color)
+- void setWidth(String width)
+- void setHeight(String height)
+- void setComposition(String composition)
+- void setPrice(Float price)
+- void setCargoPrice(Float cargoPrice)
+- void setTaxPercent(Float taxPercent)
+- void setImage(String image)
+- void setThumb(String thumb)
+- void setStock(Integer stock)
+- void setSellCount(Integer sellCount)
+- void setLive(Integer live)
+- Long getId()
+- Product getProduct()
+- Color getColor()
+- String getWidth()
+- String getHeight()
+- String getComposition()
+- Float getPrice()
+- Float getCargoPrice()
+- Float getTaxPercent()
+- String getImage()
+- String getThumb()
+- Integer getStock()
+- Integer getSellCount()
+- Integer getLive()
+
+
+=== Part 8 ===
+Class `com.commerce.backend.model.entity.Order` declaration:
+@Entity
+@Table(name = "orders")
+public class Order
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Discount, OrderDetail, User
+The class has following members:
+public methods:
+- Order()
+- void setId(Long id)
+- void setUser(User user)
+- void setOrderDetailList(List<OrderDetail> orderDetailList)
+- void setDiscount(Discount discount)
+- void setShipName(String shipName)
+- void setShipAddress(String shipAddress)
+- void setBillingAddress(String billingAddress)
+- void setCity(String city)
+- void setState(String state)
+- void setZip(String zip)
+- void setCountry(String country)
+- void setPhone(String phone)
+- void setTotalPrice(Float totalPrice)
+- void setTotalCargoPrice(Float totalCargoPrice)
+- void setDate(Date date)
+- void setShipped(Integer shipped)
+- void setCargoFirm(String cargoFirm)
+- void setTrackingNumber(String trackingNumber)
+- Long getId()
+- User getUser()
+- List<OrderDetail> getOrderDetailList()
+- Discount getDiscount()
+- String getShipName()
+- String getShipAddress()
+- String getBillingAddress()
+- String getCity()
+- String getState()
+- String getZip()
+- String getCountry()
+- String getPhone()
+- Float getTotalPrice()
+- Float getTotalCargoPrice()
+- Date getDate()
+- Integer getShipped()
+- String getCargoFirm()
+- String getTrackingNumber()
+
+
+=== Part 9 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "buildpack", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using Buildpack.", description = "%n"
+        + "This command will build or push a container image for the project, using Buildpack.", footer = "%n"
+                + "For example (using default values), it will create a container image using with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Buildpack extends BaseImageSubCommand {
+}
+
+=== Part 10 ===
+package org.springframework.security.crypto.password;
+public interface PasswordEncoder {
+    java.lang.String encode(java.lang.CharSequence charSequence)
+    boolean matches(java.lang.CharSequence charSequence, java.lang.String s)
+}
+
+=== Part 11 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "create", header = "Create a new project.", subcommands = {
+        CreateApp.class,
+        CreateCli.class,
+        CreateExtension.class })
+public class Create implements Callable<Integer> {
+}
+
+=== Part 12 ===
+package com.commerce.backend.validator;
+public class PasswordMatchesValidator implements ConstraintValidator<PasswordMatches, Object> {
+}
+
+=== Part 13 ===
+Class `com.commerce.backend.model.request.user.PasswordResetRequest` declaration:
+@PasswordMatches
+public class PasswordResetRequest
+The class has following members:
+public methods:
+- PasswordResetRequest()
+- void setOldPassword(String oldPassword)
+- void setNewPassword(String newPassword)
+- void setNewPasswordConfirm(String newPasswordConfirm)
+fields:
+- @NotBlank
+    @Size(min = 6, max = 52)
+    private String oldPassword;
+- @NotBlank
+    @Size(min = 6, max = 52)
+    private String newPassword;
+
+
+=== Part 14 ===
+package io.quarkus.cli.config;
+@Command(name = "encrypt", aliases = "enc", header = "Encrypt Secrets", description = "Encrypt a Secret value using the AES/GCM/NoPadding algorithm as a default. The encryption key is generated unless a specific key is set with the --key option.")
+public class Encrypt extends BaseConfigCommand implements Callable<Integer> {
+}
+
+=== Part 15 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "registry", header = "Configure Quarkus registry client", subcommands = {
+        RegistryListCommand.class,
+        RegistryAddCommand.class,
+        RegistryRemoveCommand.class })
+public class Registry implements Callable<Integer> {
+}
+
+=== Part 16 ===
+Class `org.springframework.samples.petclinic.api.dto.PetDetails` declaration:
+public class PetDetails
+The class uses the following imports:
+- from package org.springframework.samples.petclinic.api.dto: VisitDetails, PetType
+The class has following members:
+public methods:
+- int getId()
+- String getName()
+- String getBirthDate()
+- PetType getType()
+- List<VisitDetails> getVisits()
+fields:
+- private int id;
+- private final List<VisitDetails> visits = new ArrayList<>();
+
+
+=== Part 17 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface ManyToOne {
+}
+
+=== Part 18 ===
+Class `org.springframework.samples.petclinic.customers.model.Pet` declaration:
+@Entity
+@Table(name = "pets")
+public class Pet
+The class uses the following imports:
+- from package org.springframework.samples.petclinic.customers.model: Owner, PetType
+The class has following members:
+public methods:
+- Integer getId()
+- String getName()
+- Date getBirthDate()
+- PetType getType()
+- Owner getOwner()
+fields:
+- @ManyToOne
+    @JoinColumn(name = "owner_id")
+    @JsonIgnore
+    private Owner owner;
+- @Column(name = "name")
+    private String name;
+- @Column(name = "birth_date")
+    @Temporal(TemporalType.DATE)
+    private Date birthDate;
+- @ManyToOne
+    @JoinColumn(name = "type_id")
+    private PetType type;
+- @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+
+=== Part 19 ===
+Class `CartItem` declaration:
+@Entity
+@Table(name = "cart_item")
+public class CartItem
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant, Cart
+The class has following members:
+public methods:
+- CartItem()
+- void setId(Long id)
+- void setCart(Cart cart)
+- void setProductVariant(ProductVariant productVariant)
+- void setAmount(Integer amount)
+- Long getId()
+- Cart getCart()
+- ProductVariant getProductVariant()
+- Integer getAmount()
+
+
+=== Part 20 ===
+package com.commerce.backend.validator;
+@Target({TYPE, ANNOTATION_TYPE})
+@Retention(RUNTIME)
+@Constraint(validatedBy = PasswordMatchesValidator.class)
+@Documented
+public @interface PasswordMatches {
+}
+
+=== Part 21 ===
+package com.commerce.backend.validator;
+@Target({TYPE, FIELD, ANNOTATION_TYPE})
+@Retention(RUNTIME)
+@Constraint(validatedBy = CustomEmailValidator.class)
+@Documented
+public @interface CustomEmail {
+}
+
+=== Part 22 ===
+package com.commerce.backend.service;
+public interface UserService {
+    User getUser()
+    Boolean getVerificationStatus()
+}
+
+=== Part 23 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "categories", aliases = "cat", header = "List extension categories.")
+public class ProjectExtensionsCategories extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 24 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "registry", header = "Configure Quarkus registry client", subcommands = {
+        RegistryListCommand.class,
+        RegistryAddCommand.class,
+        RegistryRemoveCommand.class })
+public class Registry implements Callable<Integer> {
+}
+
+=== Part 25 ===
+package io.quarkus.arc.impl;
+/**
+ * This code was mainly copied from Weld codebase.
+ */
+class TypeResolver {
+    private final Map<TypeVariable<?>, Type> resolvedTypeVariables;
+    public TypeResolver(Map<TypeVariable<?>, Type> resolvedTypeVariables) {
+        this.resolvedTypeVariables = resolvedTypeVariables;
+    }
+    public Map<TypeVariable<?>, Type> getResolvedTypeVariables()
+}
+
+=== Part 26 ===
+package org.springframework.cloud.client.circuitbreaker;
+public interface ReactiveCircuitBreaker {
+    <T> reactor.core.publisher.Mono<T> run(reactor.core.publisher.Mono<T> toRun, java.util.function.Function<java.lang.Throwable,reactor.core.publisher.Mono<T>> fallback)
+}
+
+=== Part 27 ===
+package picocli;
+public class CommandLine {
+    public static final java.lang.String VERSION = "4.7.6";
+    public java.io.PrintWriter getOut()
+    public java.io.PrintWriter getErr()
+    public static class Help {
+        public static enum Ansi {
+            AUTO
+ ON
+ OFF
+            static picocli.CommandLine.Help.Ansi.Text EMPTY_TEXT;
+            static java.lang.Boolean tty;
+            static java.lang.Boolean jansiInstalled;
+Inner Class `CommandLine.Help.Ansi.Text` declaration:
+public class Text implements Cloneable
+The class uses the following imports:
+- from package picocli: CommandLine.Help.ColorScheme, CommandLine.Help.Ansi.Text
+The class has following members:
+public methods:
+- Text(int maxLength)
+- Text(int maxLength, CommandLine.Help.ColorScheme colorScheme)
+- Text(CommandLine.Help.Ansi.Text other)
+- Text(String input)
+- Text(String input, CommandLine.Help.ColorScheme colorScheme)
+
+        }
+        public static class ColorScheme {
+            ColorScheme(picocli.CommandLine.Help.ColorScheme.Builder builder)
+            public static class Builder {
+                public Builder()
+                public Builder(picocli.CommandLine.Help.Ansi ansi)
+                public Builder(picocli.CommandLine.Help.ColorScheme existing)
+            }
+        }
+    }
+    public static final class Model {
+Inner Class `CommandLine.Model.CommandSpec` declaration:
+public static class CommandSpec
+The class uses the following imports:
+- from package picocli: CommandLine.Model.CommandSpec, CommandLine
+The class has following members:
+public methods:
+- CommandLine.Model.CommandSpec setAddMethodSubcommands(Boolean addMethodSubcommands)
+- CommandLine commandLine()
+- Object userObject()
+- CommandLine.Model.CommandSpec root()
+fields:
+- public static final String DEFAULT_COMMAND_NAME = "<main class>";
+- static final Boolean DEFAULT_IS_HELP_COMMAND;
+- static final Boolean DEFAULT_IS_ADD_METHOD_SUBCOMMANDS;
+- static final Boolean DEFAULT_INTERPOLATE_VARIABLES;
+- static final Boolean DEFAULT_SUBCOMMANDS_REPEATABLE;
+
+    }
+    private static class NoVersionProvider implements picocli.CommandLine.IVersionProvider {
+    }
+    public static interface IVersionProvider {
+    }
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.LOCAL_VARIABLE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE, java.lang.annotation.ElementType.METHOD})
+    public static @interface Command {
+        java.lang.String name() default "<main class>"
+        java.lang.String[] aliases() default {}
+        java.lang.Class<?>[] subcommands() default {}
+        boolean subcommandsRepeatable() default false
+        java.lang.String[] version() default {}
+        java.lang.Class<? extends picocli.CommandLine.IVersionProvider> versionProvider() default picocli.CommandLine.NoVersionProvider.class
+        boolean mixinStandardHelpOptions() default false
+        boolean helpCommand() default false
+        java.lang.String headerHeading() default ""
+        java.lang.String[] header() default {}
+        java.lang.String synopsisHeading() default "Usage: "
+        java.lang.String[] description() default {}
+        java.lang.String parameterListHeading() default ""
+        java.lang.String optionListHeading() default ""
+        boolean sortOptions() default true
+        boolean showDefaultValues() default false
+        boolean showEndOfOptionsDelimiterInUsageHelp() default false
+        java.lang.String commandListHeading() default "Commands:%n"
+        java.lang.String[] footer() default {}
+        boolean hidden() default false
+        picocli.CommandLine.ScopeType scope() default picocli.CommandLine.ScopeType.LOCAL
+    }
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD})
+    public static @interface Spec {
+        picocli.CommandLine.Spec.Target value() default picocli.CommandLine.Spec.Target.SELF
+        static enum Target {
+ MIXEE
+        }
+    }
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PARAMETER})
+    public static @interface Mixin {
+        java.lang.String name() default ""
+    }
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER})
+    public static @interface Option {
+        java.lang.String[] names()
+        java.lang.String[] description() default {}
+        boolean hidden() default false
+    }
+    public static enum ScopeType {
+ INHERIT
+    }
+    public static final class ExitCode {
+        public static final int OK = 0;
+        public static final int SOFTWARE = 1;
+    }
+}
+
+=== Part 28 ===
+Class `com.commerce.backend.model.request.user.RegisterUserRequest` declaration:
+@PasswordMatches
+public class RegisterUserRequest
+The class has following members:
+public methods:
+- RegisterUserRequest()
+- void setEmail(String email)
+- void setPassword(String password)
+- void setPasswordRepeat(String passwordRepeat)
+fields:
+- @NotBlank
+    @Size(min = 3, max = 52)
+    @CustomEmail
+    private String email;
+- @NotBlank
+    @Size(min = 6, max = 52)
+    private String password;
+
+
+=== Part 29 ===
+package org.springframework.security.core.context;
+public class SecurityContextHolder {
+    public static org.springframework.security.core.context.SecurityContext getContext()
+}
+
+=== Part 30 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 31 ===
+package org.springframework.samples.petclinic.customers.model;
+/**
+ * Repository class for <code>Pet</code> domain objects All method names are compliant with Spring Data naming
+ * conventions so this interface can easily be extended for Spring Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface PetRepository extends JpaRepository<Pet, Integer> {
+/**
+     * Retrieve all {@link PetType}s from the data store.
+     * @return a Collection of {@link PetType}s.
+     */
+        @Query("SELECT ptype FROM PetType ptype ORDER BY ptype.name") List<PetType> findPetTypes()
+    @Query("FROM PetType ptype WHERE ptype.id = :typeId") Optional<PetType> findPetTypeById(@Param("typeId") int typeId)
+}
+
+=== Part 32 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "openshift", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using OpenShift.", description = "%n"
+        + "This command will build or push a container image for the project, using Openshift.", footer = "%n"
+                + "For example (using default values), it will create a container image in OpenShift using the docker build strategy with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Openshift extends BaseImageSubCommand implements Callable<Integer> {
+}
+
+=== Part 33 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "quarkus", subcommands = {
+        Create.class,
+        Build.class,
+        Dev.class,
+        Run.class,
+        Test.class,
+        Config.class,
+        ProjectExtensions.class,
+        Image.class,
+        Deploy.class,
+        Registry.class,
+        Info.class,
+        Update.class,
+        Version.class,
+        CliPlugins.class,
+        Completion.class }, scope = ScopeType.INHERIT, sortOptions = false, showDefaultValues = true, versionProvider = Version.class, subcommandsRepeatable = false, mixinStandardHelpOptions = false, commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", optionListHeading = "Options:%n", headerHeading = "%n", parameterListHeading = "%n")
+public class QuarkusCli implements QuarkusApplication, Callable<Integer> {
+    @CommandLine.Mixin(name = "output")
+    OutputOptionMixin output;
+    public OutputOptionMixin getOutput() { return output; }
+}
+
+=== Part 34 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "dev", showEndOfOptionsDelimiterInUsageHelp = true, header = "Run the current project in dev (live coding) mode.")
+public class Dev extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 35 ===
+package org.springframework.samples.petclinic.customers.model;
+/**
+ * Repository class for <code>Pet</code> domain objects All method names are compliant with Spring Data naming
+ * conventions so this interface can easily be extended for Spring Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface PetRepository extends JpaRepository<Pet, Integer> {
+/**
+     * Retrieve all {@link PetType}s from the data store.
+     * @return a Collection of {@link PetType}s.
+     */
+        @Query("SELECT ptype FROM PetType ptype ORDER BY ptype.name") List<PetType> findPetTypes()
+    @Query("FROM PetType ptype WHERE ptype.id = :typeId") Optional<PetType> findPetTypeById(@Param("typeId") int typeId)
+}
+
+=== Part 36 ===
+package javax.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Column {
+    java.lang.String name() default ""
+}
+
+=== Part 37 ===
+Class `com.commerce.backend.model.entity.Discount` declaration:
+@Entity
+@Table(name = "discount")
+public class Discount
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Cart, Order
+The class has following members:
+public methods:
+- Discount()
+- void setId(Long id)
+- void setOrderList(List<Order> orderList)
+- void setCartList(List<Cart> cartList)
+- void setCode(String code)
+- void setDiscountPercent(Integer discountPercent)
+- void setStatus(Integer status)
+- Long getId()
+- List<Order> getOrderList()
+- List<Cart> getCartList()
+- String getCode()
+- Integer getDiscountPercent()
+- Integer getStatus()
+
+
+=== Part 38 ===
+Class `com.commerce.backend.model.response.user.UserResponse` declaration:
+public class UserResponse
+The class has following members:
+public methods:
+- String getEmail()
+- String getFirstName()
+- String getLastName()
+- String getAddress()
+- String getCity()
+- String getState()
+- String getZip()
+- String getPhone()
+- String getCountry()
+- Integer getEmailVerified()
+fields:
+- private String email;
+- private String firstName;
+- private String lastName;
+- private String address;
+- private String city;
+- private String state;
+- private String zip;
+- private String phone;
+- private String country;
+- private Integer emailVerified;
+
+
+=== Part 39 ===
+package com.commerce.backend.error.exception;
+public class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String s) { super(s); }
+}
+
+=== Part 40 ===
+Class `OrderDetail` declaration:
+@Entity
+@Table(name = "order_detail")
+public class OrderDetail
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant, Order
+The class has following members:
+public methods:
+- OrderDetail()
+- void setId(Long id)
+- void setOrder(Order order)
+- void setProductVariant(ProductVariant productVariant)
+- void setAmount(Integer amount)
+- Long getId()
+- Order getOrder()
+- ProductVariant getProductVariant()
+- Integer getAmount()
+
+
+=== Part 41 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "list", aliases = "ls", header = "List CLI plugins. ")
+public class CliPluginsList extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 42 ===
+package org.springframework.security.access;
+public class AccessDeniedException extends java.lang.RuntimeException {
+    public AccessDeniedException(java.lang.String msg)
+}
+
+=== Part 43 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Id {
+}
+
+=== Part 44 ===
+Class `com.commerce.backend.model.entity.ProductCategory` declaration:
+@Entity
+@Table(name = "product_category")
+public class ProductCategory
+The class has following members:
+public methods:
+- ProductCategory()
+- void setId(Long id)
+- void setName(String name)
+- Long getId()
+- String getName()
+
+
+=== Part 45 ===
+package org.reactivestreams;
+public interface Publisher <T> {
+}
+
+=== Part 46 ===
+Class `com.commerce.backend.model.entity.Product` declaration:
+@Entity
+@Table(name = "product")
+public class Product
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant, ProductCategory
+The class has following members:
+public methods:
+- Product()
+- void setId(Long id)
+- void setProductCategory(ProductCategory productCategory)
+- void setProductVariantList(List<ProductVariant> productVariantList)
+- void setSku(String sku)
+- void setName(String name)
+- void setUrl(String url)
+- void setLongDesc(String longDesc)
+- void setDateCreated(Date dateCreated)
+- void setLastUpdated(Date lastUpdated)
+- void setUnlimited(Integer unlimited)
+- Long getId()
+- ProductCategory getProductCategory()
+- List<ProductVariant> getProductVariantList()
+- String getSku()
+- String getName()
+- String getUrl()
+- String getLongDesc()
+- Date getDateCreated()
+- Date getLastUpdated()
+- Integer getUnlimited()
+
+
+=== Part 47 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 48 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "buildpack", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using Buildpack.", description = "%n"
+        + "This command will build or push a container image for the project, using Buildpack.", footer = "%n"
+                + "For example (using default values), it will create a container image using with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Buildpack extends BaseImageSubCommand {
+}
+
+=== Part 49 ===
+Class `com.commerce.backend.model.request.user.UpdateUserAddressRequest` declaration:
+public class UpdateUserAddressRequest
+The class has following members:
+public methods:
+- UpdateUserAddressRequest()
+- void setCity(String city)
+- void setState(String state)
+- void setZip(String zip)
+- void setCountry(String country)
+- void setAddress(String address)
+fields:
+- @Pattern(regexp = "[0-9a-zA-Z #,-]+")
+    @Size(min = 3, max = 240)
+    private String address;
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 100)
+    private String city;
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 40)
+    private String state;
+- @Pattern(regexp = "^[0-9]*$")
+    @Size(min = 5, max = 6)
+    private String zip;
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 40)
+    private String country;
+
+
+=== Part 50 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 51 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "quarkus", subcommands = {
+        Create.class,
+        Build.class,
+        Dev.class,
+        Run.class,
+        Test.class,
+        Config.class,
+        ProjectExtensions.class,
+        Image.class,
+        Deploy.class,
+        Registry.class,
+        Info.class,
+        Update.class,
+        Version.class,
+        CliPlugins.class,
+        Completion.class }, scope = ScopeType.INHERIT, sortOptions = false, showDefaultValues = true, versionProvider = Version.class, subcommandsRepeatable = false, mixinStandardHelpOptions = false, commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", optionListHeading = "Options:%n", headerHeading = "%n", parameterListHeading = "%n")
+public class QuarkusCli implements QuarkusApplication, Callable<Integer> {
+    @CommandLine.Mixin(name = "output")
+    OutputOptionMixin output;
+    public OutputOptionMixin getOutput() { return output; }
+}
+
+=== Part 52 ===
+package org.springframework.samples.petclinic.vets.model;
+/**
+ * Models a {@link Vet Vet's} specialty (for example, dentistry).
+
+ */
+
+@Entity
+@Table(name = "specialties")
+public class Specialty {
+public java.lang.Integer getId()
+public java.lang.String getName()
+}
+
+=== Part 53 ===
+package com.commerce.backend.dao;
+@Repository
+public interface UserRepository extends CrudRepository<User, Long> {
+    Optional<User> findByEmail(String email)
+    Boolean existsByEmail(String email)
+}
+
+=== Part 54 ===
+Class `com.commerce.backend.model.entity.User` declaration:
+@Entity
+@Table(name = "user")
+public class User
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Cart
+The class has following members:
+public methods:
+- User()
+- void setId(Long id)
+- void setCart(Cart cart)
+- void setEmail(String email)
+- void setPassword(String password)
+- void setFirstName(String firstName)
+- void setLastName(String lastName)
+- void setCity(String city)
+- void setState(String state)
+- void setZip(String zip)
+- void setEmailVerified(Integer emailVerified)
+- void setRegistrationDate(Date registrationDate)
+- void setPhone(String phone)
+- void setCountry(String country)
+- void setAddress(String address)
+- Long getId()
+- Cart getCart()
+- String getEmail()
+- String getPassword()
+- String getFirstName()
+- String getLastName()
+- String getCity()
+- String getState()
+- String getZip()
+- Integer getEmailVerified()
+- Date getRegistrationDate()
+- String getPhone()
+- String getCountry()
+- String getAddress()
+fields:
+- @Column(name = "email")
+    private String email;
+- @Column(name = "password")
+    private String password;
+- @Column(name = "email_verified")
+    private Integer emailVerified;
+- @Column(name = "first_name")
+    private String firstName;
+- @Column(name = "last_name")
+    private String lastName;
+- @Column(name = "phone")
+    private String phone;
+- @Column(name = "address")
+    private String address;
+- @Column(name = "city")
+    private String city;
+- @Column(name = "state")
+    private String state;
+- @Column(name = "zip")
+    private String zip;
+- @Column(name = "country")
+    private String country;
+
+
+=== Part 55 ===
+package org.springframework.samples.petclinic.customers.model;
+/**
+
+ * Can be Cat, Dog, Hamster...
+ */
+@Entity
+@Table(name = "types")
+public class PetType {
+public java.lang.Integer getId()
+public java.lang.String getName()
+}
+
+=== Part 56 ===
+package org.springframework.security.core.context;
+public interface SecurityContext extends java.io.Serializable {
+    org.springframework.security.core.Authentication getAuthentication()
+}
+
+=== Part 57 ===
+package org.springframework.security.core;
+public interface Authentication extends java.security.Principal, java.io.Serializable {
+}
+
+=== Part 58 ===
+package com.commerce.backend.error.exception;
+public class InvalidArgumentException extends RuntimeException {
+    public InvalidArgumentException(String s) { super(s); }
+}
+
+=== Part 59 ===
+package reactor.core.publisher;
+public abstract class Mono <T> implements reactor.core.CorePublisher<T> {
+    static final java.util.function.BiPredicate EQUALS_BIPREDICATE;
+}
+
+=== Part 60 ===
+package jakarta.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 61 ===
+Class `com.commerce.backend.model.entity.Cart` declaration:
+@Entity
+@Table(name = "cart")
+public class Cart
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Discount, CartItem, User
+The class has following members:
+public methods:
+- Cart()
+- void setId(Long id)
+- void setUser(User user)
+- void setCartItemList(List<CartItem> cartItemList)
+- void setDiscount(Discount discount)
+- void setTotalCartPrice(Float totalCartPrice)
+- void setTotalCargoPrice(Float totalCargoPrice)
+- void setTotalPrice(Float totalPrice)
+- void setDateCreated(Date dateCreated)
+- Long getId()
+- User getUser()
+- List<CartItem> getCartItemList()
+- Discount getDiscount()
+- Float getTotalCartPrice()
+- Float getTotalCargoPrice()
+- Float getTotalPrice()
+- Date getDateCreated()
+
+
+=== Part 62 ===
+package javax.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 63 ===
+package org.antlr.v4.runtime;
+public class ParserRuleContext extends org.antlr.v4.runtime.RuleContext {
+    public static final org.antlr.v4.runtime.ParserRuleContext EMPTY;
+    public java.util.List<org.antlr.v4.runtime.tree.ParseTree> children;
+    public org.antlr.v4.runtime.Token start;
+    public org.antlr.v4.runtime.Token stop;
+    public org.antlr.v4.runtime.RecognitionException exception;
+    public ParserRuleContext()
+    public ParserRuleContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingStateNumber)
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

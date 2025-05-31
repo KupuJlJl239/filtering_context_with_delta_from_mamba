@@ -1,0 +1,1112 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package io.quarkus.panache.hibernate.common.runtime;
+public class CountParserVisitor extends HqlParserBaseVisitor<String> {
+    @Override
+    public String visitSimpleQueryGroup(SimpleQueryGroupContext ctx) {
+        inSimpleQueryGroup++;
+        try {
+            return super.visitSimpleQueryGroup(ctx);
+        } finally {
+            inSimpleQueryGroup--;
+        }
+    }
+    @Override
+    public String visitQuery(QueryContext ctx) {
+        super.visitQuery(ctx);
+        if (inSimpleQueryGroup == 1 && ctx.selectClause() == null) {
+            // insert a count because there's no select
+            sb.append(" select count( * )");
+        }
+        return null;
+    }
+    @Override
+    public String visitSelectClause(SelectClauseContext ctx) {
+        if (inSimpleQueryGroup == 1) {
+            if (ctx.SELECT() != null) {
+                ctx.SELECT().accept(this);
+            }
+            if (ctx.DISTINCT() != null) {
+                sb.append(" count(");
+                ctx.DISTINCT().accept(this);
+                if (ctx.selectionList().children.size() != 1) {
+                    throw new RequiresSubqueryException();
+                }
+                ctx.selectionList().children.get(0).accept(this);
+                sb.append(" )");
+            } else {
+                sb.append(" count( * )");
+            }
+        } else {
+            super.visitSelectClause(ctx);
+        }
+        return null;
+    }
+    @Override
+    public String visitJoin(JoinContext ctx) {
+        if (inSimpleQueryGroup == 1 && ctx.FETCH() != null) {
+            // ignore fetch joins for main query
+            return null;
+        }
+        return super.visitJoin(ctx);
+    }
+    @Override
+    public String visitQueryOrder(QueryOrderContext ctx) {
+        if (inSimpleQueryGroup == 1) {
+            // ignore order/limit/offset for main query
+            return null;
+        }
+        return super.visitQueryOrder(ctx);
+    }
+    @Override
+    public String visitTerminal(TerminalNode node) {
+        append(node.getText());
+        return null;
+    }
+    @Override
+    protected String defaultResult() {
+        return null;
+    }
+    @Override
+    protected String aggregateResult(String aggregate, String nextResult) {
+        if (nextResult != null) {
+            append(nextResult);
+        }
+        return null;
+    }
+    public String result() { return sb.toString(); }
+}
+
+**Test scenarios (5 total):**
+0) 1: Verify that during processing of a simple query group the internal counter is correctly incremented and then decremented
+Steps: Given a context representing a simple query group is prepared for processing
+When the system begins to process the simple query group
+Then the internal counter indicating entry into a simple query group should be incremented during execution
+And after processing is complete, the counter should return to its previous value
+
+1) 2: Verify that when processing a query without an explicit selection clause in a simple query group, a default count clause is appended
+Steps: Given a query context within a simple query group that lacks a selection clause
+When the system processes the query
+Then the processing should automatically append a default "select count( * )" clause to the output
+
+2) 3: Verify that when processing a select clause with a distinct directive and multiple selection elements within a simple query group, an exception is thrown
+Steps: Given a select clause in a simple query group that includes a distinct directive
+And the selection list contains more than one element
+When the system processes the select clause
+Then the system should throw an exception indicating that a subquery is required for multiple selections
+
+3) 4: Verify that when processing a join clause with a fetch directive within a simple query group, the fetch join is ignored in the final output
+Steps: Given a join clause containing a fetch directive in the context of a simple query group
+When the system processes the join clause
+Then the fetch part of the join should be ignored in the resulting parsed output
+
+4) 5: Verify that when processing an order clause within a simple query group, any order, limit, or offset conditions are disregarded
+Steps: Given a query order clause that includes ordering, limit, or offset instructions within a simple query group
+When the system processes the query order clause
+Then the resulting output should not include any ordering or pagination conditions
+
+
+
+**Context parts (0-7):**
+
+=== Part 0 ===
+package com.commerce.backend.model.entity;
+@Entity
+@Table(name = "discount")
+public class Discount {
+    @Column(name = "discount_percent")
+    private Integer discountPercent;
+    @Column(name = "status")
+    private Integer status;
+}
+
+=== Part 1 ===
+Class `org.springframework.samples.petclinic.customers.model.Pet` declaration:
+@Entity
+@Table(name = "pets")
+public class Pet
+The class uses the following imports:
+- from package org.springframework.samples.petclinic.customers.model: Owner, PetType
+The class has following members:
+public methods:
+- Integer getId()
+- String getName()
+- Date getBirthDate()
+- PetType getType()
+- Owner getOwner()
+
+
+=== Part 2 ===
+package io.quarkus.panacheql.internal;
+@SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast", "CheckReturnValue"})
+public class HqlParser extends Parser {
+    @SuppressWarnings("CheckReturnValue")
+	public static class StatementContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectStatementContext extends ParserRuleContext {
+        public SelectStatementContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubqueryContext extends ParserRuleContext {
+        public SubqueryContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TargetEntityContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DeleteStatementContext extends ParserRuleContext {
+        public DeleteStatementContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class UpdateStatementContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SetClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AssignmentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InsertStatementContext extends ParserRuleContext {
+        public InsertStatementContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TargetFieldsContext extends ParserRuleContext {
+        public TargetFieldsContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ValuesListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ValuesContext extends ParserRuleContext {
+        public ValuesContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class WithClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CteContext extends ParserRuleContext {
+        public CteContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CteAttributesContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchSpecificationsContext extends ParserRuleContext {
+        public SearchSpecificationsContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchSpecificationContext extends ParserRuleContext {
+        public SearchSpecificationContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CycleClauseContext extends ParserRuleContext {
+        public CycleClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QueryExpressionContext extends ParserRuleContext {
+        public QueryExpressionContext(ParserRuleContext parent, int invokingState)
+        public QueryExpressionContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SetQueryGroupContext extends QueryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimpleQueryGroupContext extends QueryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OrderedQueryContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QueryOrderExpressionContext extends OrderedQueryContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QuerySpecExpressionContext extends OrderedQueryContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NestedQueryExpressionContext extends OrderedQueryContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SetOperatorContext extends ParserRuleContext {
+        public SetOperatorContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QueryOrderContext extends ParserRuleContext {
+        public QueryOrderContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QueryContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FromClauseContext extends ParserRuleContext {
+        public FromClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityWithJoinsContext extends ParserRuleContext {
+        public EntityWithJoinsContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FromRootContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class RootSubqueryContext extends FromRootContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class RootEntityContext extends FromRootContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityNameContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class VariableContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CrossJoinContext extends ParserRuleContext {
+        public CrossJoinContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JpaCollectionJoinContext extends ParserRuleContext {
+        public JpaCollectionJoinContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinTypeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinTargetContext extends ParserRuleContext {
+        public JoinTargetContext(ParserRuleContext parent, int invokingState)
+        public JoinTargetContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinPathContext extends JoinTargetContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinSubqueryContext extends JoinTargetContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinRestrictionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectionListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectExpressionContext extends ParserRuleContext {
+        public SelectExpressionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MapEntrySelectionContext extends ParserRuleContext {
+        public MapEntrySelectionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationContext extends ParserRuleContext {
+        public InstantiationContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationTargetContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationArgumentsContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationArgumentExpressionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JpaSelectObjectSyntaxContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimplePathContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimplePathElementContext extends ParserRuleContext {
+        public SimplePathElementContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PathContext extends ParserRuleContext {
+        public PathContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PathContinuationContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SyntacticDomainPathContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralPathFragmentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IndexedPathAccessFragmentContext extends ParserRuleContext {
+        public IndexedPathAccessFragmentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TreatedNavigablePathContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionValueNavigablePathContext extends ParserRuleContext {
+        public CollectionValueNavigablePathContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MapKeyNavigablePathContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GroupByClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GroupByExpressionContext extends ParserRuleContext {
+        public GroupByExpressionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class HavingClauseContext extends ParserRuleContext {
+        public HavingClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OrderByClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OrderByFragmentContext extends ParserRuleContext {
+        public OrderByFragmentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SortSpecificationContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NullsPrecedenceContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SortExpressionContext extends ParserRuleContext {
+        public SortExpressionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SortDirectionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollateFunctionContext extends ParserRuleContext {
+        public CollateFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollationContext extends ParserRuleContext {
+        public CollationContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LimitClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FetchClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FetchCountOrPercentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParameterOrIntegerLiteralContext extends ParserRuleContext {
+        public ParameterOrIntegerLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParameterOrNumberLiteralContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class WhereClauseContext extends ParserRuleContext {
+        public WhereClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PredicateContext extends ParserRuleContext {
+        public PredicateContext(ParserRuleContext parent, int invokingState)
+        public PredicateContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsDistinctFromPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BetweenPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExistsPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AndPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsFalsePredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GroupedPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LikePredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ComparisonPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExistsCollectionPartPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NegatedPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BooleanExpressionPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OrPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MemberOfPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsEmptyPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsNullPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsTruePredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ComparisonOperatorContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubqueryInListContext extends InListContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PersistentCollectionReferenceInListContext extends InListContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParamInListContext extends InListContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExplicitTupleInListContext extends InListContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LikeEscapeContext extends ParserRuleContext {
+        public LikeEscapeContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExpressionContext extends ParserRuleContext {
+        public ExpressionContext(ParserRuleContext parent, int invokingState)
+        public ExpressionContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AdditionExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FromDurationExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BarePrimaryExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TupleExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class UnaryExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GroupedExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ConcatenationExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MultiplicationExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ToDurationExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubqueryExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class UnaryNumericLiteralExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PrimaryExpressionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FunctionExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LiteralExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParameterExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityTypeExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityIdExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityVersionExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralPathExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityNaturalIdExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CaseExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ToOneFkExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SyntacticPathExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExpressionOrPredicateContext extends ParserRuleContext {
+        public ExpressionOrPredicateContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionQuantifierContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ElementValueQuantifierContext extends ParserRuleContext {
+        public ElementValueQuantifierContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IndexKeyQuantifierContext extends ParserRuleContext {
+        public IndexKeyQuantifierContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ElementsValuesQuantifierContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IndicesKeysQuantifierContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MultiplicativeOperatorContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AdditiveOperatorContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SignOperatorContext extends ParserRuleContext {
+        public SignOperatorContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityTypeReferenceContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityIdReferenceContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityVersionReferenceContext extends ParserRuleContext {
+        public EntityVersionReferenceContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityNaturalIdReferenceContext extends ParserRuleContext {
+        public EntityNaturalIdReferenceContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ToOneFkReferenceContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CaseListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimpleCaseListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimpleCaseWhenContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CaseOtherwiseContext extends ParserRuleContext {
+        public CaseOtherwiseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchedCaseListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchedCaseWhenContext extends ParserRuleContext {
+        public SearchedCaseWhenContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LiteralContext extends ParserRuleContext {
+        public LiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BooleanLiteralContext extends ParserRuleContext {
+        public BooleanLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NumericLiteralContext extends ParserRuleContext {
+        public NumericLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BinaryLiteralContext extends ParserRuleContext {
+        public BinaryLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TemporalLiteralContext extends ParserRuleContext {
+        public TemporalLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateTimeLiteralContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalDateTimeLiteralContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ZonedDateTimeLiteralContext extends ParserRuleContext {
+        public ZonedDateTimeLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetDateTimeLiteralContext extends ParserRuleContext {
+        public OffsetDateTimeLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateLiteralContext extends ParserRuleContext {
+        public DateLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TimeLiteralContext extends ParserRuleContext {
+        public TimeLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateTimeContext extends ParserRuleContext {
+        public DateTimeContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalDateTimeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ZonedDateTimeContext extends ParserRuleContext {
+        public ZonedDateTimeContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetDateTimeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetDateTimeWithMinutesContext extends ParserRuleContext {
+        public OffsetDateTimeWithMinutesContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateContext extends ParserRuleContext {
+        public DateContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TimeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetContext extends ParserRuleContext {
+        public OffsetContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetWithMinutesContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class YearContext extends ParserRuleContext {
+        public YearContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MonthContext extends ParserRuleContext {
+        public MonthContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DayContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class HourContext extends ParserRuleContext {
+        public HourContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MinuteContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SecondContext extends ParserRuleContext {
+        public SecondContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ZoneIdContext extends ParserRuleContext {
+        public ZoneIdContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JdbcTimestampLiteralContext extends ParserRuleContext {
+        public JdbcTimestampLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JdbcDateLiteralContext extends ParserRuleContext {
+        public JdbcDateLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JdbcTimeLiteralContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GenericTemporalLiteralTextContext extends ParserRuleContext {
+        public GenericTemporalLiteralTextContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralizedLiteralContext extends ParserRuleContext {
+        public GeneralizedLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralizedLiteralTypeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralizedLiteralTextContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParameterContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NamedParameterContext extends ParameterContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PositionalParameterContext extends ParameterContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JpaNonstandardFunctionContext extends ParserRuleContext {
+        public JpaNonstandardFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JpaNonstandardFunctionNameContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GenericFunctionContext extends ParserRuleContext {
+        public GenericFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GenericFunctionNameContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GenericFunctionArgumentsContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionSizeFunctionContext extends ParserRuleContext {
+        public CollectionSizeFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionAggregateFunctionContext extends ParserRuleContext {
+        public CollectionAggregateFunctionContext(ParserRuleContext parent, int invokingState)
+        public CollectionAggregateFunctionContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IndexAggregateFunctionContext extends CollectionAggregateFunctionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ElementAggregateFunctionContext extends CollectionAggregateFunctionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionFunctionMisuseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AggregateFunctionContext extends ParserRuleContext {
+        public AggregateFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EveryFunctionContext extends ParserRuleContext {
+        public EveryFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AnyFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EveryAllQuantifierContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AnySomeQuantifierContext extends ParserRuleContext {
+        public AnySomeQuantifierContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ListaggFunctionContext extends ParserRuleContext {
+        public ListaggFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OnOverflowClauseContext extends ParserRuleContext {
+        public OnOverflowClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class WithinGroupClauseContext extends ParserRuleContext {
+        public WithinGroupClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FilterClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NullsClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NthSideClauseContext extends ParserRuleContext {
+        public NthSideClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverClauseContext extends ParserRuleContext {
+        public OverClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PartitionClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FrameClauseContext extends ParserRuleContext {
+        public FrameClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FrameStartContext extends ParserRuleContext {
+        public FrameStartContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FrameEndContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FrameExclusionContext extends ParserRuleContext {
+        public FrameExclusionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class StandardFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CastFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CastTargetContext extends ParserRuleContext {
+        public CastTargetContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CastTargetTypeContext extends ParserRuleContext {
+        public String fullTargetName;
+        public IdentifierContext i;
+        public IdentifierContext c;
+        public CastTargetTypeContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubstringFunctionContext extends ParserRuleContext {
+        public SubstringFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubstringFunctionStartArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubstringFunctionLengthArgumentContext extends ParserRuleContext {
+        public SubstringFunctionLengthArgumentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TrimFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TrimSpecificationContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TrimCharacterContext extends ParserRuleContext {
+        public TrimCharacterContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PadFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PadSpecificationContext extends ParserRuleContext {
+        public PadSpecificationContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PadCharacterContext extends ParserRuleContext {
+        public PadCharacterContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PadLengthContext extends ParserRuleContext {
+        public PadLengthContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionStringArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionReplacementArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionStartArgumentContext extends ParserRuleContext {
+        public OverlayFunctionStartArgumentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionLengthArgumentContext extends ParserRuleContext {
+        public OverlayFunctionLengthArgumentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CurrentDateFunctionContext extends ParserRuleContext {
+        public CurrentDateFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CurrentTimeFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CurrentTimestampFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantFunctionContext extends ParserRuleContext {
+        public InstantFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalDateTimeFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetDateTimeFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalDateFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalTimeFunctionContext extends ParserRuleContext {
+        public LocalTimeFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FormatFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FormatContext extends ParserRuleContext {
+        public FormatContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExtractFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TruncFunctionContext extends ParserRuleContext {
+        public TruncFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExtractFieldContext extends ParserRuleContext {
+        public ExtractFieldContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DatetimeFieldContext extends ParserRuleContext {
+        public DatetimeFieldContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DayFieldContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class WeekFieldContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TimeZoneFieldContext extends ParserRuleContext {
+        public TimeZoneFieldContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateOrTimeFieldContext extends ParserRuleContext {
+        public DateOrTimeFieldContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PositionFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PositionFunctionPatternArgumentContext extends ParserRuleContext {
+        public PositionFunctionPatternArgumentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PositionFunctionStringArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CubeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class RollupContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NakedIdentifierContext extends ParserRuleContext {
+        public NakedIdentifierContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IdentifierContext extends ParserRuleContext {
+        public IdentifierContext(ParserRuleContext parent, int invokingState)
+    }
+}
+
+=== Part 3 ===
+package org.antlr.v4.runtime.tree;
+public interface TerminalNode extends org.antlr.v4.runtime.tree.ParseTree {
+}
+
+=== Part 4 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class ColorDTO {
+    private String name;
+    private String hex;
+public java.lang.String getName()
+public java.lang.String getHex()
+}
+
+=== Part 5 ===
+package org.hibernate.grammars.hql;
+public class HqlParser extends org.antlr.v4.runtime.Parser {
+    public static class SelectClauseContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public SelectClauseContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+    }
+    public static class JoinContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public JoinContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+    }
+    public static class QueryContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public QueryContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+    }
+    public static class QueryOrderContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public QueryOrderContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+    }
+    public static class SimpleQueryGroupContext extends org.hibernate.grammars.hql.HqlParser.QueryExpressionContext {
+        public SimpleQueryGroupContext(org.hibernate.grammars.hql.HqlParser.QueryExpressionContext ctx)
+    }
+    public static class QueryExpressionContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public QueryExpressionContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+        public QueryExpressionContext()
+    }
+}
+
+=== Part 6 ===
+package com.commerce.backend.converter.user;
+@Component
+public class UserResponseConverter implements Function<User, UserResponse> {
+}
+
+=== Part 7 ===
+package org.antlr.v4.runtime;
+public class ParserRuleContext extends org.antlr.v4.runtime.RuleContext {
+    public static final org.antlr.v4.runtime.ParserRuleContext EMPTY;
+    public java.util.List<org.antlr.v4.runtime.tree.ParseTree> children;
+    public org.antlr.v4.runtime.Token start;
+    public org.antlr.v4.runtime.Token stop;
+    public org.antlr.v4.runtime.RecognitionException exception;
+    public ParserRuleContext()
+    public ParserRuleContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingStateNumber)
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

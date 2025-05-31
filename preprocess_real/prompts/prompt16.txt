@@ -1,0 +1,397 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package com.commerce.backend.api;
+@RestController
+public class CartController extends ApiController {
+    private final CartService cartService;
+    @Autowired
+    public CartController(CartService cartService) {
+        this.cartService = cartService;
+    }
+    @PostMapping(value = "/cart")
+    public ResponseEntity<CartResponse> addToCart(@RequestBody @Valid AddToCartRequest addToCartRequest) {
+        CartResponse cartResponse = cartService.addToCart(addToCartRequest.getProductVariantId(), addToCartRequest.getAmount());
+        return new ResponseEntity<>(cartResponse, HttpStatus.OK);
+    }
+    @PostMapping(value = "/cart/increment")
+    public ResponseEntity<CartResponse> increaseCartItem(@RequestBody @Valid IncrementCartItemRequest incrementCartItemRequest) {
+        CartResponse cartResponse = cartService.incrementCartItem(incrementCartItemRequest.getCartItemId(), incrementCartItemRequest.getAmount());
+        return new ResponseEntity<>(cartResponse, HttpStatus.OK);
+    }
+    @PostMapping(value = "/cart/decrement")
+    public ResponseEntity<CartResponse> decreaseCartItem(@RequestBody @Valid DecrementCartItemRequest decrementCartItemRequest) {
+        CartResponse cartResponse = cartService.decrementCartItem(decrementCartItemRequest.getCartItemId(), decrementCartItemRequest.getAmount());
+        return new ResponseEntity<>(cartResponse, HttpStatus.OK);
+    }
+    @GetMapping(value = "/cart")
+    public ResponseEntity<CartResponse> fetchCart() {
+        CartResponse cartResponse = cartService.fetchCart();
+        return new ResponseEntity<>(cartResponse, HttpStatus.OK);
+    }
+    @PostMapping(value = "/cart/remove")
+    public ResponseEntity<CartResponse> removeFromCart(@RequestBody @Valid RemoveFromCartRequest removeFromCartRequest) {
+        CartResponse cartResponse = cartService.removeFromCart(removeFromCartRequest.getCartItemId());
+        return new ResponseEntity<>(cartResponse, HttpStatus.OK);
+    }
+    @DeleteMapping(value = "/cart")
+    public ResponseEntity<HttpStatus> emptyCart() {
+        cartService.emptyCart();
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+    @PostMapping(value = "/cart/confirm")
+    public ResponseEntity<Boolean> confirmCart(@RequestBody @Valid ConfirmCartRequest confirmCartRequest) {
+        Boolean confirmCart = cartService.confirmCart(confirmCartRequest);
+        return new ResponseEntity<>(confirmCart, HttpStatus.OK);
+    }
+}
+
+**Test scenarios (7 total):**
+0) Verify that a valid product variant and quantity can be added to the cart successfully
+Steps: Given a registered customer with an active session
+And the customer has selected a valid product variant with available stock
+When the customer adds the item to the cart with a specified quantity greater than zero
+Then the system should acknowledge the request with a successful response
+And the cart details should include the newly added item with the correct quantity
+
+1) Verify that an existing cart item quantity is increased correctly
+Steps: Given a customer who already has an item in the cart with an initial quantity
+When the customer requests to increase the quantity of the cart item by a valid amount
+Then the system should update the cart item quantity accordingly
+And the updated quantity should be reflected in the cart details
+
+2) Verify that an existing cart item quantity is decreased correctly without going below one
+Steps: Given a customer with an item in the cart that has a quantity greater than one
+When the customer requests to decrease the quantity of the cart item by a valid amount
+Then the system should reduce the quantity of the item in the cart
+And the updated cart details should show the new quantity ensuring it does not fall below the minimum limit
+
+3) Verify that the cart details can be fetched and display the current items and totals
+Steps: Given a customer with several items added to the cart
+When the customer fetches the cart details
+Then the system should return the current state of the cart including each item’s details
+And the overall totals such as total cart price, cargo price, and any discounts should be correctly computed
+
+4) Verify that a specific cart item can be removed from the cart successfully
+Steps: Given a customer with multiple items in the cart including the target item for removal
+When the customer sends a request to remove the selected item from the cart
+Then the system should remove the specified item from the cart
+And the cart details should no longer include the removed item while maintaining the other items intact
+
+5) Verify that the cart can be completely emptied in a single operation
+Steps: Given a customer whose cart contains one or more items
+When the customer sends a request to empty the cart
+Then the system should remove all items from the cart
+And the cart should be updated to an empty state with a successful response status
+
+6) Verify that the cart can be confirmed with applied details including discounts and total prices
+Steps: Given a customer with valid items in the cart and appropriate cart details ready for checkout
+When the customer sends a confirmation request with details such as cart items, discount information, and calculated totals
+Then the system should validate the cart confirmation details
+And the confirmation response should indicate that the cart has been successfully confirmed for checkout
+
+
+
+**Context parts (0-29):**
+
+=== Part 0 ===
+package com.commerce.backend.service;
+public interface CartService {
+    CartResponse addToCart(Long id, Integer amount)
+    CartResponse incrementCartItem(Long cartItemId, Integer amount)
+    CartResponse decrementCartItem(Long cartItemId, Integer amount)
+    CartResponse fetchCart()
+    CartResponse removeFromCart(Long id)
+    boolean confirmCart(ConfirmCartRequest confirmCartRequest)
+    void emptyCart()
+}
+
+=== Part 1 ===
+package com.commerce.backend.service;
+@Service
+public class CartServiceImpl implements CartService {
+    @Autowired
+    public CartServiceImpl(CartRepository cartRepository,
+                           ProductService productService,
+                           UserService userService,
+                           CartResponseConverter cartResponseConverter)
+}
+
+=== Part 2 ===
+package com.commerce.backend.model.request.cart;
+public class AddToCartRequest {
+    @NotNull
+    @Min(1)
+    private Long productVariantId;
+    @NotNull
+    @Min(1)
+    private Integer amount;
+public AddToCartRequest()
+public void setProductVariantId(java.lang.Long productVariantId)
+public void setAmount(java.lang.Integer amount)
+}
+
+=== Part 3 ===
+package com.commerce.backend.model.request.cart;
+public class IncrementCartItemRequest {
+    @NotNull
+    @Min(1)
+    private Long cartItemId;
+    @NotNull
+    @Min(1)
+    private Integer amount;
+public IncrementCartItemRequest()
+public void setCartItemId(java.lang.Long cartItemId)
+public void setAmount(java.lang.Integer amount)
+}
+
+=== Part 4 ===
+package com.commerce.backend.model.request.cart;
+public class DecrementCartItemRequest {
+    @NotNull
+    @Min(1)
+    private Long cartItemId;
+    @NotNull
+    @Min(1)
+    private Integer amount;
+public DecrementCartItemRequest()
+public void setCartItemId(java.lang.Long cartItemId)
+public void setAmount(java.lang.Integer amount)
+}
+
+=== Part 5 ===
+package com.commerce.backend.model.request.cart;
+public class RemoveFromCartRequest {
+    @NotNull
+    @Min(1)
+    private Long cartItemId;
+public RemoveFromCartRequest()
+public void setCartItemId(java.lang.Long cartItemId)
+}
+
+=== Part 6 ===
+Class `com.commerce.backend.model.request.cart.ConfirmCartRequest` declaration:
+public class ConfirmCartRequest
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: DiscountDTO, CartItemDTO
+The class has following members:
+public methods:
+- ConfirmCartRequest()
+- void setCartItems(List<CartItemDTO> cartItems)
+- void setDiscount(DiscountDTO discount)
+- void setTotalCartPrice(Float totalCartPrice)
+- void setTotalCargoPrice(Float totalCargoPrice)
+- void setTotalPrice(Float totalPrice)
+
+
+=== Part 7 ===
+package com.commerce.backend.dao;
+@Repository
+public interface CartRepository extends CrudRepository<Cart, Long> {
+}
+
+=== Part 8 ===
+package com.commerce.backend.service;
+public interface ProductService {
+}
+
+=== Part 9 ===
+package com.commerce.backend.service;
+@Service
+public class ProductServiceImpl implements ProductService {
+    @Autowired
+    public ProductServiceImpl(ProductCacheService productCacheService,
+                              ProductRepository productRepository,
+                              ProductVariantRepository productVariantRepository,
+                              ProductVariantCacheService productVariantCacheService,
+                              ProductResponseConverter productResponseConverter,
+                              ProductVariantResponseConverter productVariantResponseConverter,
+                              ProductDetailsResponseConverter productDetailsResponseConverter)
+}
+
+=== Part 10 ===
+package com.commerce.backend.service;
+public interface UserService {
+}
+
+=== Part 11 ===
+package com.commerce.backend.service;
+@Service
+public class UserServiceImpl implements UserService {
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           UserResponseConverter userResponseConverter)
+}
+
+=== Part 12 ===
+package com.commerce.backend.converter.cart;
+@Component
+public class CartResponseConverter implements Function<Cart, CartResponse> {
+}
+
+=== Part 13 ===
+Class `com.commerce.backend.model.dto.CartItemDTO` declaration:
+@Builder
+public class CartItemDTO
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: ColorDTO
+The class has following members:
+public methods:
+- CartItemDTO(Long id,String url,String name,Float price,Integer amount,String thumb,Integer stock,ColorDTO color)
+- void setId(Long id)
+- void setUrl(String url)
+- void setName(String name)
+- void setPrice(Float price)
+- void setAmount(Integer amount)
+- void setThumb(String thumb)
+- void setStock(Integer stock)
+- void setColor(ColorDTO color)
+- Long getId()
+- String getUrl()
+- String getName()
+- Float getPrice()
+- Integer getAmount()
+- String getThumb()
+- Integer getStock()
+- ColorDTO getColor()
+
+
+=== Part 14 ===
+Class `com.commerce.backend.model.dto.DiscountDTO` declaration:
+@Builder
+public class DiscountDTO
+The class has following members:
+public methods:
+- DiscountDTO(Integer discountPercent,Integer status)
+- void setDiscountPercent(Integer discountPercent)
+- void setStatus(Integer status)
+- Integer getDiscountPercent()
+- Integer getStatus()
+
+
+=== Part 15 ===
+package com.commerce.backend.service.cache;
+public interface ProductCacheService {
+}
+
+=== Part 16 ===
+package com.commerce.backend.service.cache;
+@Service
+@CacheConfig(cacheNames = "product")
+public class ProductCacheServiceImpl implements ProductCacheService {
+    @Autowired
+    public ProductCacheServiceImpl(ProductRepository productRepository)
+}
+
+=== Part 17 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductRepository extends PagingAndSortingRepository<Product, Long> {
+}
+
+=== Part 18 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductVariantRepository extends PagingAndSortingRepository<ProductVariant, Long>,
+        JpaSpecificationExecutor<ProductVariant> {
+}
+
+=== Part 19 ===
+package com.commerce.backend.service.cache;
+public interface ProductVariantCacheService {
+}
+
+=== Part 20 ===
+package com.commerce.backend.service.cache;
+@Service
+@CacheConfig(cacheNames = "product_variant")
+public class ProductVariantCacheServiceImpl implements ProductVariantCacheService {
+    @Autowired
+    public ProductVariantCacheServiceImpl(ProductVariantRepository productVariantRepository)
+}
+
+=== Part 21 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductResponseConverter implements Function<Product, ProductResponse> {
+}
+
+=== Part 22 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductVariantResponseConverter implements Function<ProductVariant, ProductVariantResponse> {
+}
+
+=== Part 23 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductDetailsResponseConverter implements Function<Product, ProductDetailsResponse> {
+}
+
+=== Part 24 ===
+package com.commerce.backend.dao;
+@Repository
+public interface UserRepository extends CrudRepository<User, Long> {
+}
+
+=== Part 25 ===
+package org.springframework.security.crypto.password;
+public interface PasswordEncoder {
+}
+
+=== Part 26 ===
+package com.commerce.backend.converter.user;
+@Component
+public class UserResponseConverter implements Function<User, UserResponse> {
+}
+
+=== Part 27 ===
+Class `com.commerce.backend.model.dto.ColorDTO` declaration:
+@Builder
+public class ColorDTO
+The class has following members:
+public methods:
+- ColorDTO(String name,String hex)
+- void setName(String name)
+- void setHex(String hex)
+- String getName()
+- String getHex()
+
+
+=== Part 28 ===
+package com.commerce.backend.api;
+@Controller
+@RequestMapping("/api")
+public abstract class ApiController {
+}
+
+=== Part 29 ===
+Class `com.commerce.backend.model.response.cart.CartResponse` declaration:
+public class CartResponse
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: DiscountDTO, CartItemDTO
+The class has following members:
+public methods:
+- List<CartItemDTO> getCartItems()
+- DiscountDTO getDiscount()
+- Float getTotalCartPrice()
+- Float getTotalCargoPrice()
+- Float getTotalPrice()
+
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

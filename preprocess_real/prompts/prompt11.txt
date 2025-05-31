@@ -1,0 +1,1400 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package org.springframework.samples.petclinic.visits.web;
+@RestController
+@Slf4j
+@Timed("petclinic.visit")
+class VisitResource {
+    private final VisitRepository visitRepository;
+    @PostMapping("owners/*/pets/{petId}/visits")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Visit create(
+        @Valid @RequestBody Visit visit,
+        @PathVariable("petId") @Min(1) int petId) {
+
+        visit.setPetId(petId);
+        log.info("Saving visit {}", visit);
+        return visitRepository.save(visit);
+    }
+    @GetMapping("owners/*/pets/{petId}/visits")
+    public List<Visit> read(@PathVariable("petId") @Min(1) int petId) {
+        return visitRepository.findByPetId(petId);
+    }
+    @GetMapping("pets/visits")
+    public Visits read(@RequestParam("petId") List<Integer> petIds) {
+        final List<Visit> byPetIdIn = visitRepository.findByPetIdIn(petIds);
+        return new Visits(byPetIdIn);
+    }
+    static class Visits {
+public java.util.List<org.springframework.samples.petclinic.visits.model.Visit> getItems()
+    }
+public VisitResource(org.springframework.samples.petclinic.visits.model.VisitRepository visitRepository)
+}
+
+**Test scenarios (1 total):**
+0) 1: Verify that a new pet visit is successfully created and can be retrieved for a valid pet identifier
+Steps: Given a pet exists in the system with a valid identifier greater than zero
+And the system is prepared to accept visit entries with all required valid information
+When a user submits a request to add a new visit with valid details (including an appropriate date and description) for the pet using its valid identifier
+Then the system should store the visit, associate it with the provided pet identifier, and return the visit information with a status indicating creation was successful
+And when the user requests to view visits for that pet using its valid identifier
+Then the system should return a list of visits that includes the newly created visit
+
+
+
+**Context parts (0-4):**
+
+=== Part 0 ===
+Class `org.springframework.samples.petclinic.visits.model.Visit` declaration:
+@Entity
+@Table(name = "visits")
+@Builder(builderMethodName = "visit")
+public class Visit
+The class has following members:
+public methods:
+- Visit(Integer id,Date date,String description,int petId)
+- Visit()
+- void setId(Integer id)
+- void setDate(Date date)
+- void setDescription(String description)
+- void setPetId(int petId)
+- Integer getId()
+- Date getDate()
+- String getDescription()
+- int getPetId()
+fields:
+- @Column(name = "pet_id")
+    private int petId;
+
+
+=== Part 1 ===
+package org.springframework.samples.petclinic.visits.model;
+/**
+ * Repository class for <code>Visit</code> domain objects All method names are compliant with Spring Data naming conventions so this interface can easily be extended for Spring
+ * Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface VisitRepository extends JpaRepository<Visit, Integer> {
+    List<Visit> findByPetId(int petId)
+    List<Visit> findByPetIdIn(Collection<Integer> petIds)
+}
+
+=== Part 2 ===
+package jakarta.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 3 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 4 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Column {
+    java.lang.String name() default ""
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package org.springframework.samples.petclinic.api.boundary.web;
+@RestController
+@RequestMapping("/api/gateway")
+public class ApiGatewayController {
+    private final CustomersServiceClient customersServiceClient;
+    private final VisitsServiceClient visitsServiceClient;
+    private final ReactiveCircuitBreakerFactory cbFactory;
+    @GetMapping(value = "owners/{ownerId}")
+    public Mono<OwnerDetails> getOwnerDetails(final @PathVariable int ownerId) {
+        return customersServiceClient.getOwner(ownerId)
+            .flatMap(owner ->
+                visitsServiceClient.getVisitsForPets(owner.getPetIds())
+                    .transform(it -> {
+                        ReactiveCircuitBreaker cb = cbFactory.create("getOwnerDetails");
+                        return cb.run(it, throwable -> emptyVisitsForPets());
+                    })
+                    .map(addVisitsToOwner(owner))
+            );
+
+    }
+    private Function<Visits, OwnerDetails> addVisitsToOwner(OwnerDetails owner) {
+        return visits -> {
+            owner.getPets()
+                .forEach(pet -> pet.getVisits()
+                    .addAll(visits.getItems().stream()
+                        .filter(v -> v.getPetId() == pet.getId())
+                        .collect(Collectors.toList()))
+                );
+            return owner;
+        };
+    }
+    private Mono<Visits> emptyVisitsForPets() { return Mono.just(new Visits()); }
+public ApiGatewayController(org.springframework.samples.petclinic.api.application.CustomersServiceClient customersServiceClient,org.springframework.samples.petclinic.api.application.VisitsServiceClient visitsServiceClient,org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreakerFactory cbFactory)
+}
+
+**Test scenarios (2 total):**
+0) Verify that when both customer and visit information are successfully retrieved, the system returns a complete owner profile with the corresponding pet visit details
+Steps: Given an owner exists with one or more associated pets registered in the customers service
+And each pet has a unique identifier used to query visit records in the visits service
+And the customers service returns the owner details including the list of pet identifiers
+And the visits service returns a valid collection of visit records corresponding to the provided pet identifiers
+When a client requests the owner details through the API gateway using a valid owner identifier
+Then the response should include the owner's information as received from the customers service
+And each pet in the returned owner details should have its visit records updated with the corresponding visits returned from the visits service
+
+1) Verify that when the visits service fails, the system applies a fallback to provide owner details with pets showing no visit records
+Steps: Given an owner exists with one or more associated pets registered in the customers service
+And the customers service successfully returns the owner details including pet identifiers
+And the visits service call fails or encounters an error causing the circuit breaker to trigger the fallback behavior
+When a client requests the owner details through the API gateway using a valid owner identifier
+Then the system should detect the failure in retrieving visit records and use a fallback mechanism to return an empty list of visit records for the pets
+And the returned owner details should contain all information from the customers service with each pet’s visit list remaining empty
+
+
+
+**Context parts (0-29):**
+
+=== Part 0 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "dev", showEndOfOptionsDelimiterInUsageHelp = true, header = "Run the current project in dev (live coding) mode.")
+public class Dev extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 1 ===
+package org.springframework.web.reactive.function.client;
+S extends org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<?> {
+}
+
+=== Part 2 ===
+package reactor.core;
+public interface CorePublisher <T> extends org.reactivestreams.Publisher<T> {
+}
+
+=== Part 3 ===
+package reactor.core.publisher;
+T {
+}
+
+=== Part 4 ===
+Class `org.springframework.samples.petclinic.api.dto.VisitDetails` declaration:
+public class VisitDetails
+The class has following members:
+public methods:
+- Integer getId()
+- Integer getPetId()
+- String getDate()
+- String getDescription()
+fields:
+- private Integer petId = null;
+
+
+=== Part 5 ===
+Class `org.springframework.samples.petclinic.api.dto.PetDetails` declaration:
+public class PetDetails
+The class uses the following imports:
+- from package org.springframework.samples.petclinic.api.dto: VisitDetails, PetType
+The class has following members:
+public methods:
+- int getId()
+- String getName()
+- String getBirthDate()
+- PetType getType()
+- List<VisitDetails> getVisits()
+fields:
+- private int id;
+- private final List<VisitDetails> visits = new ArrayList<>();
+
+
+=== Part 6 ===
+Class `Mono` declaration:
+public abstract class Mono <T> implements CorePublisher<T>
+The class uses the following imports:
+- from package org.reactivestreams: Publisher
+- from package reactor.core.publisher: Mono
+- from package reactor.core: CorePublisher
+The class has following members:
+public methods:
+- final <R> Mono<R> flatMap(Function<? super T,? extends Mono<? extends R>> transformer)
+- final <R> Mono<R> map(Function<? super T,? extends R> mapper)
+- final <V> Mono<V> transform(Function<? super Mono<T>,? extends Publisher<V>> transformer)
+- static <T> Mono<T> just(T data)
+fields:
+- static final BiPredicate EQUALS_BIPREDICATE;
+
+
+=== Part 7 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductVariantResponseConverter implements Function<ProductVariant, ProductVariantResponse> {
+}
+
+=== Part 8 ===
+package com.commerce.backend.validator;
+public class PasswordMatchesValidator implements ConstraintValidator<PasswordMatches, Object> {
+}
+
+=== Part 9 ===
+Class `com.commerce.backend.model.entity.Discount` declaration:
+@Entity
+@Table(name = "discount")
+public class Discount
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Cart, Order
+The class has following members:
+public methods:
+- Discount()
+- void setId(Long id)
+- void setOrderList(List<Order> orderList)
+- void setCartList(List<Cart> cartList)
+- void setCode(String code)
+- void setDiscountPercent(Integer discountPercent)
+- void setStatus(Integer status)
+- Long getId()
+- List<Order> getOrderList()
+- List<Cart> getCartList()
+- String getCode()
+- Integer getDiscountPercent()
+- Integer getStatus()
+
+
+=== Part 10 ===
+package org.springframework.web.reactive.function.client;
+public interface WebClient {
+    org.springframework.web.reactive.function.client.WebClient.RequestHeadersUriSpec<?> get()
+    static interface Builder {
+        org.springframework.web.reactive.function.client.WebClient build()
+    }
+    static interface RequestHeadersUriSpec <S extends org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<S>> extends org.springframework.web.reactive.function.client.WebClient.UriSpec<S>, org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<S> {
+    }
+    static interface ResponseSpec {
+        <T> reactor.core.publisher.Mono<T> bodyToMono(java.lang.Class<T> elementClass)
+    }
+    static interface RequestHeadersSpec <S extends org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<S>> {
+        org.springframework.web.reactive.function.client.WebClient.ResponseSpec retrieve()
+    }
+    static interface UriSpec <S extends org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<?>> {
+        S uri(java.lang.String uri, java.lang.Object... uriVariables)
+    }
+}
+
+=== Part 11 ===
+package io.quarkus.panacheql.internal;
+@SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast", "CheckReturnValue"})
+public class HqlParser extends Parser {
+    @SuppressWarnings("CheckReturnValue")
+	public static class StatementContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectStatementContext extends ParserRuleContext {
+        public SelectStatementContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubqueryContext extends ParserRuleContext {
+        public SubqueryContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TargetEntityContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DeleteStatementContext extends ParserRuleContext {
+        public DeleteStatementContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class UpdateStatementContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SetClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AssignmentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InsertStatementContext extends ParserRuleContext {
+        public InsertStatementContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TargetFieldsContext extends ParserRuleContext {
+        public TargetFieldsContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ValuesListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ValuesContext extends ParserRuleContext {
+        public ValuesContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class WithClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CteContext extends ParserRuleContext {
+        public CteContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CteAttributesContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchSpecificationsContext extends ParserRuleContext {
+        public SearchSpecificationsContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchSpecificationContext extends ParserRuleContext {
+        public SearchSpecificationContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CycleClauseContext extends ParserRuleContext {
+        public CycleClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QueryExpressionContext extends ParserRuleContext {
+        public QueryExpressionContext(ParserRuleContext parent, int invokingState)
+        public QueryExpressionContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SetQueryGroupContext extends QueryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimpleQueryGroupContext extends QueryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OrderedQueryContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QueryOrderExpressionContext extends OrderedQueryContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QuerySpecExpressionContext extends OrderedQueryContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NestedQueryExpressionContext extends OrderedQueryContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SetOperatorContext extends ParserRuleContext {
+        public SetOperatorContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QueryOrderContext extends ParserRuleContext {
+        public QueryOrderContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class QueryContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FromClauseContext extends ParserRuleContext {
+        public FromClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityWithJoinsContext extends ParserRuleContext {
+        public EntityWithJoinsContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FromRootContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class RootSubqueryContext extends FromRootContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class RootEntityContext extends FromRootContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityNameContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class VariableContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CrossJoinContext extends ParserRuleContext {
+        public CrossJoinContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JpaCollectionJoinContext extends ParserRuleContext {
+        public JpaCollectionJoinContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinTypeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinTargetContext extends ParserRuleContext {
+        public JoinTargetContext(ParserRuleContext parent, int invokingState)
+        public JoinTargetContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinPathContext extends JoinTargetContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinSubqueryContext extends JoinTargetContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JoinRestrictionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectionListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SelectExpressionContext extends ParserRuleContext {
+        public SelectExpressionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MapEntrySelectionContext extends ParserRuleContext {
+        public MapEntrySelectionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationContext extends ParserRuleContext {
+        public InstantiationContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationTargetContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationArgumentsContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantiationArgumentExpressionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JpaSelectObjectSyntaxContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimplePathContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimplePathElementContext extends ParserRuleContext {
+        public SimplePathElementContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PathContext extends ParserRuleContext {
+        public PathContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PathContinuationContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SyntacticDomainPathContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralPathFragmentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IndexedPathAccessFragmentContext extends ParserRuleContext {
+        public IndexedPathAccessFragmentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TreatedNavigablePathContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionValueNavigablePathContext extends ParserRuleContext {
+        public CollectionValueNavigablePathContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MapKeyNavigablePathContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GroupByClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GroupByExpressionContext extends ParserRuleContext {
+        public GroupByExpressionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class HavingClauseContext extends ParserRuleContext {
+        public HavingClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OrderByClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OrderByFragmentContext extends ParserRuleContext {
+        public OrderByFragmentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SortSpecificationContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NullsPrecedenceContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SortExpressionContext extends ParserRuleContext {
+        public SortExpressionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SortDirectionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollateFunctionContext extends ParserRuleContext {
+        public CollateFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollationContext extends ParserRuleContext {
+        public CollationContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LimitClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FetchClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FetchCountOrPercentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParameterOrIntegerLiteralContext extends ParserRuleContext {
+        public ParameterOrIntegerLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParameterOrNumberLiteralContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class WhereClauseContext extends ParserRuleContext {
+        public WhereClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PredicateContext extends ParserRuleContext {
+        public PredicateContext(ParserRuleContext parent, int invokingState)
+        public PredicateContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsDistinctFromPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BetweenPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExistsPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AndPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsFalsePredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GroupedPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LikePredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ComparisonPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExistsCollectionPartPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NegatedPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BooleanExpressionPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OrPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MemberOfPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsEmptyPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsNullPredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IsTruePredicateContext extends PredicateContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ComparisonOperatorContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubqueryInListContext extends InListContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PersistentCollectionReferenceInListContext extends InListContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParamInListContext extends InListContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExplicitTupleInListContext extends InListContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LikeEscapeContext extends ParserRuleContext {
+        public LikeEscapeContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExpressionContext extends ParserRuleContext {
+        public ExpressionContext(ParserRuleContext parent, int invokingState)
+        public ExpressionContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AdditionExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FromDurationExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BarePrimaryExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TupleExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class UnaryExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GroupedExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ConcatenationExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MultiplicationExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ToDurationExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubqueryExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class UnaryNumericLiteralExpressionContext extends ExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PrimaryExpressionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FunctionExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LiteralExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParameterExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityTypeExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityIdExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityVersionExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralPathExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityNaturalIdExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CaseExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ToOneFkExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SyntacticPathExpressionContext extends PrimaryExpressionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExpressionOrPredicateContext extends ParserRuleContext {
+        public ExpressionOrPredicateContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionQuantifierContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ElementValueQuantifierContext extends ParserRuleContext {
+        public ElementValueQuantifierContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IndexKeyQuantifierContext extends ParserRuleContext {
+        public IndexKeyQuantifierContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ElementsValuesQuantifierContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IndicesKeysQuantifierContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MultiplicativeOperatorContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AdditiveOperatorContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SignOperatorContext extends ParserRuleContext {
+        public SignOperatorContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityTypeReferenceContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityIdReferenceContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityVersionReferenceContext extends ParserRuleContext {
+        public EntityVersionReferenceContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EntityNaturalIdReferenceContext extends ParserRuleContext {
+        public EntityNaturalIdReferenceContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ToOneFkReferenceContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CaseListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimpleCaseListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SimpleCaseWhenContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CaseOtherwiseContext extends ParserRuleContext {
+        public CaseOtherwiseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchedCaseListContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SearchedCaseWhenContext extends ParserRuleContext {
+        public SearchedCaseWhenContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LiteralContext extends ParserRuleContext {
+        public LiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BooleanLiteralContext extends ParserRuleContext {
+        public BooleanLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NumericLiteralContext extends ParserRuleContext {
+        public NumericLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class BinaryLiteralContext extends ParserRuleContext {
+        public BinaryLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TemporalLiteralContext extends ParserRuleContext {
+        public TemporalLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateTimeLiteralContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalDateTimeLiteralContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ZonedDateTimeLiteralContext extends ParserRuleContext {
+        public ZonedDateTimeLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetDateTimeLiteralContext extends ParserRuleContext {
+        public OffsetDateTimeLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateLiteralContext extends ParserRuleContext {
+        public DateLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TimeLiteralContext extends ParserRuleContext {
+        public TimeLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateTimeContext extends ParserRuleContext {
+        public DateTimeContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalDateTimeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ZonedDateTimeContext extends ParserRuleContext {
+        public ZonedDateTimeContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetDateTimeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetDateTimeWithMinutesContext extends ParserRuleContext {
+        public OffsetDateTimeWithMinutesContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateContext extends ParserRuleContext {
+        public DateContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TimeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetContext extends ParserRuleContext {
+        public OffsetContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetWithMinutesContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class YearContext extends ParserRuleContext {
+        public YearContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MonthContext extends ParserRuleContext {
+        public MonthContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DayContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class HourContext extends ParserRuleContext {
+        public HourContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class MinuteContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SecondContext extends ParserRuleContext {
+        public SecondContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ZoneIdContext extends ParserRuleContext {
+        public ZoneIdContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JdbcTimestampLiteralContext extends ParserRuleContext {
+        public JdbcTimestampLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JdbcDateLiteralContext extends ParserRuleContext {
+        public JdbcDateLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JdbcTimeLiteralContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GenericTemporalLiteralTextContext extends ParserRuleContext {
+        public GenericTemporalLiteralTextContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralizedLiteralContext extends ParserRuleContext {
+        public GeneralizedLiteralContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralizedLiteralTypeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GeneralizedLiteralTextContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ParameterContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NamedParameterContext extends ParameterContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PositionalParameterContext extends ParameterContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JpaNonstandardFunctionContext extends ParserRuleContext {
+        public JpaNonstandardFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class JpaNonstandardFunctionNameContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GenericFunctionContext extends ParserRuleContext {
+        public GenericFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GenericFunctionNameContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class GenericFunctionArgumentsContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionSizeFunctionContext extends ParserRuleContext {
+        public CollectionSizeFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionAggregateFunctionContext extends ParserRuleContext {
+        public CollectionAggregateFunctionContext(ParserRuleContext parent, int invokingState)
+        public CollectionAggregateFunctionContext()
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IndexAggregateFunctionContext extends CollectionAggregateFunctionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ElementAggregateFunctionContext extends CollectionAggregateFunctionContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CollectionFunctionMisuseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AggregateFunctionContext extends ParserRuleContext {
+        public AggregateFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EveryFunctionContext extends ParserRuleContext {
+        public EveryFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AnyFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class EveryAllQuantifierContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class AnySomeQuantifierContext extends ParserRuleContext {
+        public AnySomeQuantifierContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ListaggFunctionContext extends ParserRuleContext {
+        public ListaggFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OnOverflowClauseContext extends ParserRuleContext {
+        public OnOverflowClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class WithinGroupClauseContext extends ParserRuleContext {
+        public WithinGroupClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FilterClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NullsClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NthSideClauseContext extends ParserRuleContext {
+        public NthSideClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverClauseContext extends ParserRuleContext {
+        public OverClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PartitionClauseContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FrameClauseContext extends ParserRuleContext {
+        public FrameClauseContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FrameStartContext extends ParserRuleContext {
+        public FrameStartContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FrameEndContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FrameExclusionContext extends ParserRuleContext {
+        public FrameExclusionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class StandardFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CastFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CastTargetContext extends ParserRuleContext {
+        public CastTargetContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CastTargetTypeContext extends ParserRuleContext {
+        public String fullTargetName;
+        public IdentifierContext i;
+        public IdentifierContext c;
+        public CastTargetTypeContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubstringFunctionContext extends ParserRuleContext {
+        public SubstringFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubstringFunctionStartArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class SubstringFunctionLengthArgumentContext extends ParserRuleContext {
+        public SubstringFunctionLengthArgumentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TrimFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TrimSpecificationContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TrimCharacterContext extends ParserRuleContext {
+        public TrimCharacterContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PadFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PadSpecificationContext extends ParserRuleContext {
+        public PadSpecificationContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PadCharacterContext extends ParserRuleContext {
+        public PadCharacterContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PadLengthContext extends ParserRuleContext {
+        public PadLengthContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionStringArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionReplacementArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionStartArgumentContext extends ParserRuleContext {
+        public OverlayFunctionStartArgumentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OverlayFunctionLengthArgumentContext extends ParserRuleContext {
+        public OverlayFunctionLengthArgumentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CurrentDateFunctionContext extends ParserRuleContext {
+        public CurrentDateFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CurrentTimeFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CurrentTimestampFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class InstantFunctionContext extends ParserRuleContext {
+        public InstantFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalDateTimeFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class OffsetDateTimeFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalDateFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class LocalTimeFunctionContext extends ParserRuleContext {
+        public LocalTimeFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FormatFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class FormatContext extends ParserRuleContext {
+        public FormatContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExtractFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TruncFunctionContext extends ParserRuleContext {
+        public TruncFunctionContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class ExtractFieldContext extends ParserRuleContext {
+        public ExtractFieldContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DatetimeFieldContext extends ParserRuleContext {
+        public DatetimeFieldContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DayFieldContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class WeekFieldContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class TimeZoneFieldContext extends ParserRuleContext {
+        public TimeZoneFieldContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class DateOrTimeFieldContext extends ParserRuleContext {
+        public DateOrTimeFieldContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PositionFunctionContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PositionFunctionPatternArgumentContext extends ParserRuleContext {
+        public PositionFunctionPatternArgumentContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class PositionFunctionStringArgumentContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class CubeContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class RollupContext extends ParserRuleContext {
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class NakedIdentifierContext extends ParserRuleContext {
+        public NakedIdentifierContext(ParserRuleContext parent, int invokingState)
+    }
+    @SuppressWarnings("CheckReturnValue")
+	public static class IdentifierContext extends ParserRuleContext {
+        public IdentifierContext(ParserRuleContext parent, int invokingState)
+    }
+}
+
+=== Part 12 ===
+package org.springframework.samples.petclinic.api.dto;
+public class PetType {
+public java.lang.String getName()
+}
+
+=== Part 13 ===
+package io.quarkus.cli.deploy;
+@CommandLine.Command(name = "kubernetes", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Perform the deploy action on Kubernetes.", description = "%n"
+        + "The command will deploy the application on Kubernetes.", footer = "%n"
+                + "For example (using default values), it will create a Deployment named '<project.artifactId>' using the image with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>' and will deploy it to the target cluster.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Kubernetes extends BaseKubernetesDeployCommand {
+}
+
+=== Part 14 ===
+package org.springframework.samples.petclinic.api.dto;
+public class Visits {
+    private List<VisitDetails> items = new ArrayList<>();
+}
+
+=== Part 15 ===
+package org.reactivestreams;
+public interface Publisher <T> {
+}
+
+=== Part 16 ===
+package io.quarkus.cli.deploy;
+@CommandLine.Command(name = "kubernetes", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Perform the deploy action on Kubernetes.", description = "%n"
+        + "The command will deploy the application on Kubernetes.", footer = "%n"
+                + "For example (using default values), it will create a Deployment named '<project.artifactId>' using the image with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>' and will deploy it to the target cluster.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Kubernetes extends BaseKubernetesDeployCommand {
+}
+
+=== Part 17 ===
+package com.commerce.backend.validator;
+public class CustomEmailValidator implements ConstraintValidator<CustomEmail, String> {
+}
+
+=== Part 18 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "list", header = "List enabled Quarkus registries", description = "%n"
+        + "This command will list currently enabled Quarkus extension registries.")
+public class RegistryListCommand extends BaseRegistryCommand {
+}
+
+=== Part 19 ===
+Class `com.commerce.backend.model.entity.Discount` declaration:
+@Entity
+@Table(name = "discount")
+public class Discount
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Cart, Order
+The class has following members:
+public methods:
+- Discount()
+- void setId(Long id)
+- void setOrderList(List<Order> orderList)
+- void setCartList(List<Cart> cartList)
+- void setCode(String code)
+- void setDiscountPercent(Integer discountPercent)
+- void setStatus(Integer status)
+
+
+=== Part 20 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductDetailsResponseConverter implements Function<Product, ProductDetailsResponse> {
+}
+
+=== Part 21 ===
+Class `org.springframework.samples.petclinic.api.dto.OwnerDetails` declaration:
+public class OwnerDetails
+The class uses the following imports:
+- from package org.springframework.samples.petclinic.api.dto: PetDetails
+The class has following members:
+public methods:
+- @JsonIgnore
+    List<Integer> getPetIds() {
+        return pets.stream()
+            .map(PetDetails::getId)
+            .collect(toList());
+    }
+- int getId()
+- String getFirstName()
+- String getLastName()
+- String getAddress()
+- String getCity()
+- String getTelephone()
+- List<PetDetails> getPets()
+fields:
+- private final List<PetDetails> pets = new ArrayList<>();
+
+
+=== Part 22 ===
+package org.springframework.cloud.client.circuitbreaker;
+public interface ReactiveCircuitBreaker {
+    <T> reactor.core.publisher.Mono<T> run(reactor.core.publisher.Mono<T> toRun, java.util.function.Function<java.lang.Throwable,reactor.core.publisher.Mono<T>> fallback)
+}
+
+=== Part 23 ===
+package org.springframework.samples.petclinic.api.application;
+@Component
+public class VisitsServiceClient {
+    // Could be changed for testing purpose
+    private String hostname = "http://visits-service/";
+    private final WebClient.Builder webClientBuilder;
+    public Mono<Visits> getVisitsForPets(final List<Integer> petIds) {
+        return webClientBuilder.build()
+            .get()
+            .uri(hostname + "pets/visits?petId={petId}", joinIds(petIds))
+            .retrieve()
+            .bodyToMono(Visits.class);
+    }
+    private String joinIds(List<Integer> petIds) {
+        return petIds.stream().map(Object::toString).collect(joining(","));
+    }
+    void setHostname(String hostname)
+public VisitsServiceClient(org.springframework.web.reactive.function.client.WebClient.Builder webClientBuilder)
+}
+
+=== Part 24 ===
+Class `com.commerce.backend.model.entity.Product` declaration:
+@Entity
+@Table(name = "product")
+public class Product
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant, ProductCategory
+The class has following members:
+public methods:
+- Long getId()
+- ProductCategory getProductCategory()
+- List<ProductVariant> getProductVariantList()
+- String getSku()
+- String getName()
+- String getUrl()
+- String getLongDesc()
+- Date getDateCreated()
+- Date getLastUpdated()
+- Integer getUnlimited()
+
+
+=== Part 25 ===
+package javax.persistence;
+public enum FetchType {
+ EAGER
+}
+
+=== Part 26 ===
+package org.springframework.samples.petclinic.api.application;
+@Component
+public class CustomersServiceClient {
+    private final WebClient.Builder webClientBuilder;
+    public Mono<OwnerDetails> getOwner(final int ownerId) {
+        return webClientBuilder.build().get()
+            .uri("http://customers-service/owners/{ownerId}", ownerId)
+            .retrieve()
+            .bodyToMono(OwnerDetails.class);
+    }
+public CustomersServiceClient(org.springframework.web.reactive.function.client.WebClient.Builder webClientBuilder)
+}
+
+=== Part 27 ===
+package com.commerce.backend.converter.user;
+@Component
+public class UserResponseConverter implements Function<User, UserResponse> {
+}
+
+=== Part 28 ===
+package org.springframework.cloud.client.circuitbreaker;
+public abstract class ReactiveCircuitBreakerFactory <CONF, CONFB extends org.springframework.cloud.client.circuitbreaker.ConfigBuilder<CONF>> extends org.springframework.cloud.client.circuitbreaker.AbstractCircuitBreakerFactory<CONF,CONFB> {
+    public ReactiveCircuitBreakerFactory()
+    public abstract org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreaker create(java.lang.String id)
+}
+
+=== Part 29 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductDetailsResponseConverter implements Function<Product, ProductDetailsResponse> {
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

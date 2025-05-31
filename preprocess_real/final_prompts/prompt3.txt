@@ -1,0 +1,733 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package com.commerce.backend.api;
+@RestController
+public class OrderController extends ApiController {
+    private final OrderService orderService;
+    @Autowired
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
+    }
+    @GetMapping(value = "/order/count")
+    public ResponseEntity<Integer> getAllOrdersCount() {
+        Integer orderCount = orderService.getAllOrdersCount();
+        return new ResponseEntity<>(orderCount, HttpStatus.OK);
+    }
+    @GetMapping(value = "/order")
+    public ResponseEntity<List<OrderResponse>> getAllOrders(@RequestParam("page") Integer page, @RequestParam("size") Integer pageSize) {
+        if (Objects.isNull(page) || page < 0) {
+            throw new InvalidArgumentException("Invalid page");
+        }
+        if (Objects.isNull(pageSize) || pageSize < 0) {
+            throw new InvalidArgumentException("Invalid pageSize");
+        }
+        List<OrderResponse> orders = orderService.getAllOrders(page, pageSize);
+        return new ResponseEntity<>(orders, HttpStatus.OK);
+    }
+    @PostMapping(value = "/order")
+    public ResponseEntity<OrderResponse> postOrder(@RequestBody @Valid PostOrderRequest postOrderRequest) {
+        OrderResponse orderResponse = orderService.postOrder(postOrderRequest);
+        return new ResponseEntity<>(orderResponse, HttpStatus.OK);
+    }
+}
+
+**Test scenarios (7 total):**
+0) Verify that the order count endpoint returns the current total number of orders
+Steps: Given the system has some orders already stored
+When a client requests the total order count via the order count endpoint
+Then the system should respond with an HTTP status code of OK
+And the response should include the integer representing the current total number of orders
+
+1) Verify that the orders list endpoint returns a paginated list when valid pagination parameters are provided
+Steps: Given the system has a number of orders stored
+And the client knows a valid page number and page size
+When a client sends a request to the orders list endpoint with these valid pagination parameters
+Then the system should respond with an HTTP status code of OK
+And the response should include a list of orders corresponding to the provided page and page size
+
+2) Verify that the orders list endpoint returns an empty list when no orders exist in the system
+Steps: Given the system has no orders stored
+And a valid page and page size are provided by the client
+When the client sends a request to the orders list endpoint with these pagination parameters
+Then the system should respond with an HTTP status code of OK
+And the response should include an empty list indicating that no orders are available
+
+3) Verify that the orders list endpoint handles an invalid (negative) page parameter by throwing an appropriate error
+Steps: Given the system is set up for order retrieval
+When a client sends a request to the orders list endpoint with a negative value for the page parameter and a valid page size
+Then the system should throw an error indicating "Invalid page"
+And the client should receive an error response indicating the provided page parameter is invalid
+
+4) Verify that the orders list endpoint handles an invalid (negative) pageSize parameter by throwing an appropriate error
+Steps: Given the system supports order retrieval with valid pagination parameters
+When a client sends a request to the orders list endpoint with a valid page number but a negative pageSize parameter
+Then the system should throw an error indicating "Invalid pageSize"
+And the client should receive an error response that clearly states the pageSize parameter is invalid
+
+5) Verify that a valid order can be successfully created via the order creation endpoint
+Steps: Given a client has prepared correct and complete order details including shipment and billing information
+When the client sends a POST request to the order creation endpoint with these valid order details
+Then the system should create a new order
+And the system should respond with an HTTP status code of OK
+And the response should include the details of the newly created order
+
+6) Verify that the order creation endpoint responds with a validation error when mandatory order details are missing
+Steps: Given a client submits order data that is missing one or more mandatory fields
+When the client sends a POST request to the order creation endpoint with the incomplete order details
+Then the system should respond with a validation error message
+And the HTTP response should indicate a bad request due to missing or invalid information
+
+
+
+**Context parts (0-63):**
+
+=== Part 0 ===
+package com.commerce.backend.api;
+@Controller
+@RequestMapping("/api")
+public abstract class ApiController {
+}
+
+=== Part 1 ===
+package com.commerce.backend.service;
+@Service
+public class UserServiceImpl implements UserService {
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           UserResponseConverter userResponseConverter)
+}
+
+=== Part 2 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "docker", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using Docker.", description = "%n"
+        + "This command will build or push a container image for the project, using Docker.", footer = "%n"
+                + "For example (using default values), it will create a container image using with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Docker extends BaseImageSubCommand {
+}
+
+=== Part 3 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "sync", header = "Sync (discover / purge) CLI Plugins.")
+public class CliPluginsSync extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 4 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductRepository extends PagingAndSortingRepository<Product, Long> {
+}
+
+=== Part 5 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 6 ===
+package com.commerce.backend.service.cache;
+public interface ProductCacheService {
+}
+
+=== Part 7 ===
+package com.commerce.backend.dao;
+@Repository
+public interface UserRepository extends CrudRepository<User, Long> {
+}
+
+=== Part 8 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 9 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "dev", showEndOfOptionsDelimiterInUsageHelp = true, header = "Run the current project in dev (live coding) mode.")
+public class Dev extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 10 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "build", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image.", description = "%n"
+        + "This command will build a container image for the project.", subcommands = { Docker.class,
+                Podman.class,
+                Buildpack.class,
+                Jib.class,
+                Openshift.class }, footer = { "%n"
+                        + "For example (using default values), it will create a container image using docker with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'."
+                        + "%n" }, headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Build extends BaseImageCommand {
+}
+
+=== Part 11 ===
+package io.quarkus.cli.common;
+public class OutputOptionMixin implements MessageWriter {
+    static final boolean picocliDebugEnabled = "DEBUG".equalsIgnoreCase(System.getProperty("picocli.trace"));
+    boolean verbose = false;
+    @CommandLine.Option(names = { "-e", "--errors" }, description = "Print more context on errors and exceptions.")
+    boolean showErrors;
+    @CommandLine.Option(names = {
+            "--cli-test" }, hidden = true, description = "Manually set output streams for unit test purposes.")
+    boolean cliTestMode;
+    Path testProjectRoot;
+    @CommandLine.Option(names = { "--cli-test-dir" }, hidden = true)
+    void setTestProjectRoot(String path)
+    @CommandLine.Spec(CommandLine.Spec.Target.MIXEE)
+    CommandSpec mixee;
+    ColorScheme scheme;
+    PrintWriter out;
+    PrintWriter err;
+    public PrintWriter out() {
+        PrintWriter o = out;
+        if (o == null) {
+            o = out = mixee.commandLine().getOut();
+        }
+        return o;
+    }
+    public PrintWriter err() {
+        PrintWriter e = err;
+        if (e == null) {
+            e = err = mixee.commandLine().getErr();
+        }
+        return e;
+    }
+    private static OutputOptionMixin getOutput(CommandSpec commandSpec) {
+        return ((QuarkusCli) commandSpec.root().userObject()).getOutput();
+    }
+    @CommandLine.Option(names = { "--verbose" }, description = "Verbose mode.")
+    public void setVerbose(boolean verbose)
+    public boolean getVerbose() { return getOutput(mixee).verbose; }
+    public boolean isVerbose() { return getVerbose() || picocliDebugEnabled; }
+    public boolean isCliTest() { return cliTestMode; }
+}
+
+=== Part 12 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductVariantResponseConverter implements Function<ProductVariant, ProductVariantResponse> {
+}
+
+=== Part 13 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductResponseConverter implements Function<Product, ProductResponse> {
+}
+
+=== Part 14 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 15 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductVariantRepository extends PagingAndSortingRepository<ProductVariant, Long>,
+        JpaSpecificationExecutor<ProductVariant> {
+}
+
+=== Part 16 ===
+package org.springframework.security.crypto.password;
+public interface PasswordEncoder {
+}
+
+=== Part 17 ===
+package com.commerce.backend.dao;
+@Repository
+public interface CartRepository extends CrudRepository<Cart, Long> {
+}
+
+=== Part 18 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class DiscountDTO {
+public java.lang.Integer getDiscountPercent()
+public java.lang.Integer getStatus()
+}
+
+=== Part 19 ===
+Class `com.commerce.backend.model.dto.OrderDetailDTO` declaration:
+@Builder
+public class OrderDetailDTO
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: ColorDTO, CategoryDTO
+The class has following members:
+public methods:
+- String getUrl()
+- String getName()
+- Float getPrice()
+- Float getCargoPrice()
+- String getThumb()
+- Integer getAmount()
+- CategoryDTO getCategory()
+- ColorDTO getColor()
+
+
+=== Part 20 ===
+package com.commerce.backend.service.cache;
+public interface ProductVariantCacheService {
+}
+
+=== Part 21 ===
+package org.springframework.samples.petclinic.api.dto;
+public class Visits {
+    private List<VisitDetails> items = new ArrayList<>();
+}
+
+=== Part 22 ===
+package org.springframework.samples.petclinic.api.dto;
+public class PetType {
+public java.lang.String getName()
+}
+
+=== Part 23 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductDetailsResponseConverter implements Function<Product, ProductDetailsResponse> {
+}
+
+=== Part 24 ===
+package reactor.core;
+public interface CorePublisher <T> extends org.reactivestreams.Publisher<T> {
+}
+
+=== Part 25 ===
+package com.commerce.backend.converter.user;
+@Component
+public class UserResponseConverter implements Function<User, UserResponse> {
+}
+
+=== Part 26 ===
+package jakarta.persistence;
+public enum GenerationType {
+ IDENTITY
+}
+
+=== Part 27 ===
+package org.hibernate.grammars.hql;
+public class HqlParser extends org.antlr.v4.runtime.Parser {
+    public static class SelectClauseContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public SelectClauseContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+    }
+    public static class JoinContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public JoinContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+    }
+    public static class QueryContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public QueryContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+    }
+    public static class QueryOrderContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public QueryOrderContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+    }
+    public static class SimpleQueryGroupContext extends org.hibernate.grammars.hql.HqlParser.QueryExpressionContext {
+        public SimpleQueryGroupContext(org.hibernate.grammars.hql.HqlParser.QueryExpressionContext ctx)
+    }
+    public static class QueryExpressionContext extends org.antlr.v4.runtime.ParserRuleContext {
+        public QueryExpressionContext(org.antlr.v4.runtime.ParserRuleContext parent, int invokingState)
+        public QueryExpressionContext()
+    }
+}
+
+=== Part 28 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class CategoryDTO {
+public java.lang.String getName()
+}
+
+=== Part 29 ===
+package org.springframework.samples.petclinic.customers.model;
+/**
+ * Repository class for <code>Owner</code> domain objects All method names are compliant with Spring Data naming
+ * conventions so this interface can easily be extended for Spring Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface OwnerRepository extends JpaRepository<Owner, Integer> {
+}
+
+=== Part 30 ===
+package com.commerce.backend.service;
+public interface CartService {
+}
+
+=== Part 31 ===
+Class `com.commerce.backend.model.response.order.OrderResponse` declaration:
+public class OrderResponse
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: OrderDetailDTO, DiscountDTO
+The class has following members:
+public methods:
+- Long getId()
+- String getShipName()
+- String getShipAddress()
+- String getBillingAddress()
+- String getCity()
+- String getState()
+- String getZip()
+- String getCountry()
+- String getPhone()
+- Float getTotalPrice()
+- Float getTotalCargoPrice()
+- Long getDate()
+- Integer getShipped()
+- String getCargoFirm()
+- String getTrackingNumber()
+- DiscountDTO getDiscount()
+- List<OrderDetailDTO> getOrderItems()
+
+
+=== Part 32 ===
+package org.springframework.samples.petclinic.visits.model;
+/**
+ * Repository class for <code>Visit</code> domain objects All method names are compliant with Spring Data naming conventions so this interface can easily be extended for Spring
+ * Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface VisitRepository extends JpaRepository<Visit, Integer> {
+    List<Visit> findByPetId(int petId)
+    List<Visit> findByPetIdIn(Collection<Integer> petIds)
+}
+
+=== Part 33 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "add", header = "Add extension(s) to this project.")
+public class ProjectExtensionsAdd extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 34 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class ColorDTO {
+public java.lang.String getName()
+public java.lang.String getHex()
+}
+
+=== Part 35 ===
+package com.commerce.backend.converter.order;
+@Component
+public class OrderResponseConverter implements Function<Order, OrderResponse> {
+}
+
+=== Part 36 ===
+Class `org.springframework.samples.petclinic.visits.model.Visit` declaration:
+@Entity
+@Table(name = "visits")
+@Builder(builderMethodName = "visit")
+public class Visit
+The class has following members:
+public methods:
+- Visit(Integer id,Date date,String description,int petId)
+- Visit()
+- void setId(Integer id)
+- void setDate(Date date)
+- void setDescription(String description)
+- void setPetId(int petId)
+- Integer getId()
+- Date getDate()
+- String getDescription()
+- int getPetId()
+fields:
+- @Column(name = "pet_id")
+    private int petId;
+
+
+=== Part 37 ===
+package com.commerce.backend.service;
+public interface ProductService {
+}
+
+=== Part 38 ===
+package com.commerce.backend.error.exception;
+public class InvalidArgumentException extends RuntimeException {
+    public InvalidArgumentException(String s) { super(s); }
+}
+
+=== Part 39 ===
+package com.commerce.backend.service.cache;
+@Service
+@CacheConfig(cacheNames = "product")
+public class ProductCacheServiceImpl implements ProductCacheService {
+    @Autowired
+    public ProductCacheServiceImpl(ProductRepository productRepository)
+}
+
+=== Part 40 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "cli", header = "Create a Quarkus command-line project.", description = "%n"
+        + "This command will create a Java project in a new ARTIFACT-ID directory.", footer = { "%n"
+                + "For example (using default values), a new Java project will be created in a 'code-with-quarkus' directory; "
+                + "it will use Maven to build an artifact with GROUP-ID='org.acme', ARTIFACT-ID='code-with-quarkus', and VERSION='1.0.0-SNAPSHOT'."
+                + "%n" })
+public class CreateCli extends BaseCreateCommand {
+}
+
+=== Part 41 ===
+package org.springframework.cloud.client.circuitbreaker;
+public abstract class ReactiveCircuitBreakerFactory <CONF, CONFB extends org.springframework.cloud.client.circuitbreaker.ConfigBuilder<CONF>> extends org.springframework.cloud.client.circuitbreaker.AbstractCircuitBreakerFactory<CONF,CONFB> {
+    public ReactiveCircuitBreakerFactory()
+    public abstract org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreaker create(java.lang.String id)
+}
+
+=== Part 42 ===
+package io.quarkus.devtools.exec;
+public class Executable {
+    public static File findExecutableFile(String base) {
+        String path = null;
+        String executable = base;
+
+        if (OS.determineOS() == OS.WINDOWS) {
+            executable = base + ".cmd";
+            path = findExecutable(executable);
+            if (path == null) {
+                executable = base + ".bat";
+                path = findExecutable(executable);
+            }
+        } else {
+            executable = base;
+            path = findExecutable(executable);
+        }
+        if (path == null)
+            return null;
+        return new File(path, executable);
+    }
+    public static String findExecutable(String exec) {
+        return Stream.of(System.getenv("PATH").split(Pattern.quote(File.pathSeparator))).map(Paths::get)
+                .map(path -> path.resolve(exec).toFile()).filter(File::exists).findFirst().map(File::getParent)
+                .orElse(null);
+    }
+    public static File findExecutable(String name, String errorMessage, MessageWriter output) {
+        File command = findExecutableFile(name);
+        if (command == null) {
+            output.error(errorMessage);
+            throw new RuntimeException("Unable to find " + name + " command");
+        }
+        return command;
+    }
+    public static File findWrapper(Path projectRoot, String[] windows, String other) {
+        if (projectRoot == null) {
+            return null;
+        }
+        if (OS.determineOS() == OS.WINDOWS) {
+            for (String name : windows) {
+                File wrapper = new File(projectRoot + File.separator + name);
+                if (wrapper.isFile())
+                    return wrapper;
+            }
+        } else {
+            File wrapper = new File(projectRoot + File.separator + other);
+            if (wrapper.isFile())
+                return wrapper;
+        }
+
+        // look for a wrapper in a parent directory
+        Path normalizedPath = projectRoot.normalize();
+        if (!normalizedPath.equals(projectRoot.getRoot())) {
+            return findWrapper(normalizedPath.getParent(), windows, other);
+        } else {
+            return null;
+        }
+    }
+}
+
+=== Part 43 ===
+package io.quarkus.cli.config;
+@Command(name = "encrypt", aliases = "enc", header = "Encrypt Secrets", description = "Encrypt a Secret value using the AES/GCM/NoPadding algorithm as a default. The encryption key is generated unless a specific key is set with the --key option.")
+public class Encrypt extends BaseConfigCommand implements Callable<Integer> {
+}
+
+=== Part 44 ===
+Class `com.commerce.backend.model.request.order.PostOrderRequest` declaration:
+public class PostOrderRequest
+The class has following members:
+public methods:
+- PostOrderRequest()
+- void setShipName(String shipName)
+- void setShipAddress(String shipAddress)
+- void setBillingAddress(String billingAddress)
+- void setCity(String city)
+- void setState(String state)
+- void setZip(String zip)
+- void setCountry(String country)
+- void setPhone(String phone)
+
+
+=== Part 45 ===
+Class `org.springframework.samples.petclinic.vets.model.Vet` declaration:
+@Entity
+@Table(name = "vets")
+public class Vet
+The class has following members:
+public methods:
+- protected Set<Specialty> getSpecialtiesInternal()
+- @XmlElement
+    List<Specialty> getSpecialties()
+- int getNrOfSpecialties()
+- Integer getId()
+- String getFirstName()
+- String getLastName()
+
+
+=== Part 46 ===
+package jakarta.persistence;
+public enum FetchType {
+ EAGER
+}
+
+=== Part 47 ===
+package com.commerce.backend.dao;
+@Repository
+public interface OrderRepository extends PagingAndSortingRepository<Order, Long> {
+}
+
+=== Part 48 ===
+package io.quarkus.cli.deploy;
+@CommandLine.Command(name = "knative", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Perform the deploy action on Knative.", description = "%n"
+        + "The command will deploy the application on Knative.", footer = "%n"
+                + "For example (using default values), it will create a Deployment named '<project.artifactId>' using the image with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>' and will deploy it to the target cluster.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Knative extends BaseKubernetesDeployCommand {
+}
+
+=== Part 49 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "add", header = "Add plugin(s) to the Quarkus CLI.")
+public class CliPluginsAdd extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 50 ===
+package org.springframework.data.jpa.repository;
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.ANNOTATION_TYPE})
+@org.springframework.data.annotation.QueryAnnotation
+@java.lang.annotation.Documented
+public @interface Query {
+    java.lang.String value() default ""
+}
+
+=== Part 51 ===
+package com.commerce.backend.service;
+public interface OrderService {
+    Integer getAllOrdersCount()
+    List<OrderResponse> getAllOrders(Integer page, Integer pageSize)
+    OrderResponse postOrder(PostOrderRequest postOrderRequest)
+}
+
+=== Part 52 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Column {
+    java.lang.String name() default ""
+}
+
+=== Part 53 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Id {
+}
+
+=== Part 54 ===
+package jakarta.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 55 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "remove", header = "Remove plugin(s) to the Quarkus CLI.")
+public class CliPluginsRemove extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 56 ===
+package reactor.core;
+public interface CorePublisher <T> extends org.reactivestreams.Publisher<T> {
+}
+
+=== Part 57 ===
+package com.commerce.backend.service;
+@Service
+public class OrderServiceImpl implements OrderService {
+    @Autowired
+    public OrderServiceImpl(OrderRepository orderRepository,
+                            UserService userService,
+                            CartService cartService,
+                            OrderResponseConverter orderResponseConverter)
+}
+
+=== Part 58 ===
+package com.commerce.backend.service.cache;
+@Service
+@CacheConfig(cacheNames = "product_variant")
+public class ProductVariantCacheServiceImpl implements ProductVariantCacheService {
+    @Autowired
+    public ProductVariantCacheServiceImpl(ProductVariantRepository productVariantRepository)
+}
+
+=== Part 59 ===
+package com.commerce.backend.service;
+public interface UserService {
+}
+
+=== Part 60 ===
+package com.commerce.backend.service;
+@Service
+public class ProductServiceImpl implements ProductService {
+    @Autowired
+    public ProductServiceImpl(ProductCacheService productCacheService,
+                              ProductRepository productRepository,
+                              ProductVariantRepository productVariantRepository,
+                              ProductVariantCacheService productVariantCacheService,
+                              ProductResponseConverter productResponseConverter,
+                              ProductVariantResponseConverter productVariantResponseConverter,
+                              ProductDetailsResponseConverter productDetailsResponseConverter)
+}
+
+=== Part 61 ===
+package com.commerce.backend.converter.cart;
+@Component
+public class CartResponseConverter implements Function<Cart, CartResponse> {
+}
+
+=== Part 62 ===
+package com.commerce.backend.service;
+@Service
+public class CartServiceImpl implements CartService {
+    @Autowired
+    public CartServiceImpl(CartRepository cartRepository,
+                           ProductService productService,
+                           UserService userService,
+                           CartResponseConverter cartResponseConverter)
+}
+
+=== Part 63 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "deploy", sortOptions = false, mixinStandardHelpOptions = false, header = "Deploy application.", subcommands = {
+        Kubernetes.class, Openshift.class, Knative.class, Kind.class, Minikube.class,
+}, headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", optionListHeading = "%nOptions:%n")
+public class Deploy extends BuildToolDelegatingCommand {
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

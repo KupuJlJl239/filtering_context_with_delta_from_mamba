@@ -1,0 +1,1398 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package io.quarkus.vertx.http.runtime;
+/**
+ * A utility class that can check known user agents which are known to be incompatible with SameSite=None attribute.
+ * <p>
+ * <ul>
+ * <li>Versions of Chrome from Chrome 51 to Chrome 66 (inclusive on both ends).
+ * These Chrome versions will reject a cookie with `SameSite=None`. This also
+ * affects older versions of Chromium-derived browsers, as well as Android WebView.
+ * This behavior was correct according to the version of the cookie specification
+ * at that time, but with the addition of the new "None" value to the specification,
+ * this behavior has been updated in Chrome 67 and newer. (Prior to Chrome 51,
+ * the SameSite attribute was ignored entirely and all cookies were treated as if
+ * they were `SameSite=None`.)</li>
+ * <li>Versions of UC Browser on Android prior to version 12.13.2. Older versions
+ * will reject a cookie with `SameSite=None`. This behavior was correct according
+ * to the version of the cookie specification at that time, but with the addition of
+ * the new "None" value to the specification, this behavior has been updated in newer
+ * versions of UC Browser.
+ * <li>Versions of Safari and embedded browsers on MacOS 10.14 and all browsers on iOS 12.
+ * These versions will erroneously treat cookies marked with `SameSite=None` as if they
+ * were marked `SameSite=Strict`. This bug has been fixed on newer versions of iOS and MacOS.
+ * </ul>
+ * <p>
+
+ * @see <a href="https://www.chromium.org/updates/same-site/incompatible-clients">SameSite=None: Known Incompatible Clients</a>.
+ */
+final class SameSiteNoneIncompatibleClientChecker {
+/**
+     * User Agents Regex Patterns
+     */
+        private static final Pattern IOS_PATTERN = Pattern.compile("\\(iP.+; CPU .*OS (\\d+)[_\\d]*.*\\) AppleWebKit\\/");
+    private static final Pattern MACOSX_PATTERN = Pattern
+            .compile("\\(Macintosh;.*Mac OS X (\\d+)_(\\d+)[_\\d]*.*\\) AppleWebKit\\/");
+    private static final Pattern SAFARI_PATTERN = Pattern.compile("Version\\/.* Safari\\/");
+    private static final Pattern MAC_EMBEDDED_BROWSER_PATTERN = Pattern.compile(
+            "^Mozilla\\/[\\.\\d]+ \\(Macintosh;.*Mac OS X [_\\d]+\\) AppleWebKit\\/[\\.\\d]+ \\(KHTML, like Gecko\\)$");
+    private static final Pattern CHROMIUM_PATTERN = Pattern.compile("Chrom(e|ium)");
+    private static final Pattern CHROMIUM_VERSION_PATTERN = Pattern.compile("Chrom[^ \\/]+\\/(\\d+)[\\.\\d]* ");
+    // private static final Pattern UC_BROWSER_PATTERN = Pattern.compile("UCBrowser\\/");
+    private static final Pattern UC_BROWSER_VERSION_PATTERN = Pattern.compile("UCBrowser\\/(\\d+)\\.(\\d+)\\.(\\d+)[\\.\\d]* ");
+    public static boolean shouldSendSameSiteNone(String useragent) { return !isSameSiteNoneIncompatible(useragent); }
+    // browsers known to be incompatible.
+    public static boolean isSameSiteNoneIncompatible(String useragent) {
+        return hasWebKitSameSiteBug(useragent) ||
+                dropsUnrecognizedSameSiteCookies(useragent);
+    }
+    static boolean hasWebKitSameSiteBug(String useragent) {
+        return isIosVersion(12, useragent) ||
+                (isMacosxVersion(10, 14, useragent) &&
+                        (isSafari(useragent) || isMacEmbeddedBrowser(useragent)));
+    }
+    static boolean dropsUnrecognizedSameSiteCookies(String useragent) {
+        if (isUcBrowser(useragent)) {
+            return !isUcBrowserVersionAtLeast(12, 13, 2, useragent);
+        }
+        return isChromiumBased(useragent) &&
+                isChromiumVersionAtLeast(51, useragent) &&
+                !isChromiumVersionAtLeast(67, useragent);
+    }
+    static boolean isIosVersion(int major, String useragent) {
+        Matcher m = IOS_PATTERN.matcher(useragent);
+        if (m.find()) {
+            // Extract digits from first capturing group.
+            return String.valueOf(major).equals(m.group(1));
+        }
+        return false;
+    }
+    static boolean isMacosxVersion(int major, int minor, String useragent) {
+        Matcher m = MACOSX_PATTERN.matcher(useragent);
+        if (m.find()) {
+            // Extract digits from first and second capturing groups.
+            return String.valueOf(major).equals(m.group(1)) &&
+                    String.valueOf(minor).equals(m.group(2));
+        }
+        return false;
+    }
+    static boolean isSafari(String useragent) {
+        return SAFARI_PATTERN.matcher(useragent).find() &&
+                !isChromiumBased(useragent);
+    }
+    static boolean isMacEmbeddedBrowser(String useragent) {
+        return MAC_EMBEDDED_BROWSER_PATTERN.matcher(useragent).find();
+    }
+    static boolean isChromiumBased(String useragent) { return CHROMIUM_PATTERN.matcher(useragent).find(); }
+    static boolean isChromiumVersionAtLeast(int major, String useragent) {
+        Matcher m = CHROMIUM_VERSION_PATTERN.matcher(useragent);
+        if (m.find()) {
+            // Extract digits from first capturing group.
+            int version = Integer.parseInt(m.group(1));
+            return version >= major;
+        }
+        return false;
+    }
+    static boolean isUcBrowser(String useragent) { return useragent.contains("UCBrowser/"); }
+    static boolean isUcBrowserVersionAtLeast(int major, int minor, int build, String useragent) {
+        Matcher m = UC_BROWSER_VERSION_PATTERN.matcher(useragent);
+        if (m.find()) {
+            // Extract digits from three capturing groups.
+            int major_version = Integer.parseInt(m.group(1));
+            int minor_version = Integer.parseInt(m.group(2));
+            int build_version = Integer.parseInt(m.group(3));
+            if (major_version != major) {
+                return major_version > major;
+            }
+            if (minor_version != minor) {
+                return minor_version > minor;
+            }
+            return build_version >= build;
+        }
+        return false;
+    }
+}
+
+**Test scenarios (3 total):**
+0) Verify that a Chromium-based browser with a version between the incompatible range is identified as incompatible for SameSite=None cookies
+Steps: Given a user agent string representing a Chromium-based browser with a version between "51" and "66" (for example, a browser string containing "Chrome/60")
+When the system evaluates the user agent for SameSite=None compatibility using the public check
+Then the system should determine that the browser is incompatible with the SameSite=None attribute
+And the result from checking whether to send SameSite=None cookies should be false
+
+1) Verify that a Chromium-based browser with a version equal to or above the fixed threshold is identified as compatible for SameSite=None cookies
+Steps: Given a user agent string representing a Chromium-based browser with a version equal to or above "67" (for example, a browser string containing "Chrome/70")
+When the system evaluates the user agent for SameSite=None compatibility using the public check
+Then the system should determine that the browser is compatible with the SameSite=None attribute
+And the result from checking whether to send SameSite=None cookies should be true
+
+2) Verify that an older UC Browser version below the required threshold is flagged as incompatible with SameSite=None cookies
+Steps: Given a user agent string representing UC Browser with a version lower than the fixed minimum requirement (for example, a browser string containing "UCBrowser/12.10.0")
+When the system evaluates the user agent for SameSite=None compatibility using the public check
+Then the system should determine that the browser is incompatible with the SameSite=None attribute
+And the result from checking whether to send SameSite=None cookies should be false
+
+
+
+**Context parts (0--1):**
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package io.quarkus.cli.build;
+public class ExecuteUtil {
+    public static File findExecutableFile(String base) { return Executable.findExecutableFile(base); }
+    public static File findExecutable(String name, String errorMessage, OutputOptionMixin output) {
+        return Executable.findExecutable(name, errorMessage, output);
+    }
+    public static int executeProcess(OutputOptionMixin output, String[] args, File parentDir)
+            throws IOException, InterruptedException {
+        if (output.isVerbose()) {
+            output.out().println(String.join(" ", args));
+            output.out().println();
+        }
+
+        int exit = SOFTWARE;
+        if (output.isCliTest()) {
+            // We have to capture IO differently in tests..
+            Process process = new ProcessBuilder()
+                    .command(args)
+                    .redirectInput(ProcessBuilder.Redirect.INHERIT)
+                    .directory(parentDir)
+                    .start();
+
+            // Drain the output/errors streams
+            ExecutorService service = Executors.newFixedThreadPool(2);
+            service.submit(() -> {
+                new BufferedReader(new InputStreamReader(process.getInputStream())).lines()
+                        .forEach(output.out()::println);
+            });
+            service.submit(() -> {
+                new BufferedReader(new InputStreamReader(process.getErrorStream())).lines()
+                        .forEach(output.err()::println);
+            });
+            process.waitFor(5, TimeUnit.MINUTES);
+            service.shutdown();
+
+            exit = process.exitValue();
+        } else {
+            Process process = new ProcessBuilder()
+                    .command(args)
+                    .inheritIO()
+                    .directory(parentDir)
+                    .start();
+            exit = process.waitFor();
+        }
+
+        if (exit != 0) {
+            return SOFTWARE;
+        } else {
+            return OK;
+        }
+    }
+    public static File findWrapper(Path projectRoot, String[] windows, String other) {
+        return Executable.findWrapper(projectRoot, windows, other);
+    }
+}
+
+**Test scenarios (5 total):**
+0) 1: Verify that the system returns a valid executable file if the executable exists in the user environment
+Steps: Given a valid executable base name is provided and the system environment PATH contains the executable file (with the appropriate extension for the current OS)
+When the system attempts to locate the executable file using the provided base name
+Then the system should return a file reference pointing to the located executable
+And the file reference should reflect the correct naming conventions (e.g., ".cmd" or ".bat" for Windows or the plain name for other operating systems)
+
+1) 2: Verify that the system logs an error and fails gracefully when the executable is not found
+Steps: Given a non-existent executable name and a descriptive error message are provided
+And the output mechanism is configured to capture error messages
+When the system attempts to locate the executable using the provided name
+Then the system should output the descriptive error message
+And the system should throw an exception indicating that the executable command could not be found
+
+2) 3: Verify that the process execution in test mode outputs command details and returns the correct exit code
+Steps: Given the system is configured in CLI test mode with verbose output enabled 
+And a valid array of process command arguments along with a valid parent directory are provided
+When the system initiates the execution of the external process in test mode
+Then the system should print the full command string on the output stream
+And the process output and error streams should be captured and relayed to the appropriate output streams
+And after the process completes within the timeout period, the returned exit code should be mapped to an OK status if the process exited successfully or to a SOFTWARE status otherwise
+
+3) 4: Verify that the process execution in normal mode correctly inherits the IO and returns the proper status code
+Steps: Given the system is not in CLI test mode and a valid array of command arguments with an appropriate working directory is provided
+When the system initiates the execution of the external process in normal mode
+Then the process should inherit the input/output streams directly from the parent process
+And the system should wait for the process to finish execution
+And the exit code returned should indicate an OK status when the process finishes successfully or a SOFTWARE status when it fails
+
+4) 5: Verify that the system correctly searches for a wrapper file in the project directory or its parent directories
+Steps: Given a project root path is provided along with an array of potential wrapper file names for Windows and an alternative name for other operating systems
+When the system attempts to locate the wrapper file
+Then if the operating system is Windows and a file matching any of the provided Windows names exists in the project directory, it should return that file
+Or if the operating system is not Windows and a file matching the alternative name is available, it should return that file
+And if no matching wrapper is found in the current project directory, the system should recursively search in the parent directories until reaching the root
+And if no wrapper file is found, the system should return a null reference
+
+
+
+**Context parts (0-99):**
+
+=== Part 0 ===
+package io.quarkus.cli.deploy;
+@CommandLine.Command(name = "openshift", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Perform the deploy action on OpenShift.", description = "%n"
+        + "The command will deploy the application on OpenShift.", footer = "%n"
+                + "For example (using default values), it will create a Deployment named '<project.artifactId>' using the image with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>' and will deploy it to the target cluster.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Openshift extends BaseKubernetesDeployCommand {
+}
+
+=== Part 1 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class ColorDTO {
+public java.lang.String getName()
+public java.lang.String getHex()
+}
+
+=== Part 2 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductVariantRepository extends PagingAndSortingRepository<ProductVariant, Long>,
+        JpaSpecificationExecutor<ProductVariant> {
+}
+
+=== Part 3 ===
+package org.springframework.samples.petclinic.api.dto;
+public class PetType {
+public java.lang.String getName()
+}
+
+=== Part 4 ===
+Class `com.commerce.backend.model.response.order.OrderResponse` declaration:
+public class OrderResponse
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: OrderDetailDTO, DiscountDTO
+The class has following members:
+public methods:
+- Long getId()
+- String getShipName()
+- String getShipAddress()
+- String getBillingAddress()
+- String getCity()
+- String getState()
+- String getZip()
+- String getCountry()
+- String getPhone()
+- Float getTotalPrice()
+- Float getTotalCargoPrice()
+- Long getDate()
+- Integer getShipped()
+- String getCargoFirm()
+- String getTrackingNumber()
+- DiscountDTO getDiscount()
+- List<OrderDetailDTO> getOrderItems()
+
+
+=== Part 5 ===
+package org.springframework.samples.petclinic.api.dto;
+public class Visits {
+    private List<VisitDetails> items = new ArrayList<>();
+}
+
+=== Part 6 ===
+package com.commerce.backend.model.response.product;
+public class ProductResponse {
+public java.lang.String getName()
+public java.lang.String getUrl()
+public java.util.List<com.commerce.backend.model.dto.ProductVariantDTO> getProductVariants()
+}
+
+=== Part 7 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "update", aliases = { "up",
+        "upgrade" }, sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Suggest recommended project updates with the possibility to apply them.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "%nOptions:%n")
+public class Update extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 8 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "extension", header = "Create a Quarkus extension project", description = "%n"
+        + "Quarkus extensions are built from multiple modules: runtime, deployment, integration-test and "
+        + "docs. This command will generate a Maven multi-module project in a directory called EXTENSION-ID "
+        + "by applying naming conventions to the specified EXTENSION-ID.", footer = { "%nDefault Naming conventions%n",
+                " GROUP-ID: io.quarkiverse.<EXTENSION-ID>",
+                " EXTENSION-NAME: EXTENSION-ID converted to Capitalized Words",
+                " NAMESPACE-NAME: NAMESPACE-ID converted to Capitalized Words",
+                "%nModule Naming Conventions%n",
+                " parent: ",
+                "    artifactId:\t[NAMESPACE-ID][EXTENSION-ID]-parent",
+                "    name:\t[NAMESPACE-NAME][EXTENSION-NAME] - Parent",
+                " runtime:",
+                "    artifactId:\t[NAMESPACE-ID][EXTENSION-ID]",
+                "    name:\t[NAMESPACE-NAME][EXTENSION-NAME] - Runtime",
+                " deployment:",
+                "    artifactId:\t[NAMESPACE-ID][EXTENSION-ID]-deployment",
+                "    name:\t[NAMESPACE-NAME][EXTENSION-NAME] - Deployment",
+                " integration-tests:",
+                "    artifactId:\t[NAMESPACE-ID][EXTENSION-ID]-integration-tests",
+                "    name:\t[NAMESPACE-NAME][EXTENSION-NAME] - Integration Tests",
+                " docs:",
+                "    artifactId:\t[NAMESPACE-ID][EXTENSION-ID]-docs",
+                "    name:\t[NAMESPACE-NAME][EXTENSION-NAME] - Documentation",
+                "%nPackage and Class Naming Conventions%n",
+                " Package name: [GROUP-ID][EXTENSION-ID] with any dashes replaced by dots",
+                " Class name prefix: EXTENSION-ID converted to CamelCase",
+                "%nAs an example, specifying 'hello-world' as the EXTENSION-ID and "
+                        + "'org.acme' as the GROUP-ID will generate a project containing the following modules:%n",
+                "  hello-world: ",
+                "    artifact:\torg.acme:hello-world-parent:1.0.0-SNAPSHOT",
+                "    name:\tHello World - Parent",
+                "  hello-world/runtime:",
+                "    artifact:\torg.acme:hello-world:1.0.0-SNAPSHOT",
+                "    name:\tHello World - Runtime",
+                "    package name: org.acme.hello.world.runtime",
+                "  hello-world/deployment:",
+                "    artifact:\torg.acme:hello-world-deployment:1.0.0-SNAPSHOT",
+                "    name:\tHello World - Deployment",
+                "    package names: org.acme.hello.world.deployment, org.acme.hello.world.test",
+                "  hello-world/integration-test:",
+                "    artifact:\torg.acme:hello-world-integration-tests:1.0.0-SNAPSHOT",
+                "    name:\tHello World - Integration Tests",
+                "    package name: org.acme.hello.world.it",
+                "  hello-world/docs:",
+                "    artifact:\torg.acme:hello-world-docs:1.0.0-SNAPSHOT",
+                "    name:\tHello World - Documentation",
+                "%nGenerated classes will use 'HelloWorld' as a class name prefix."
+        })
+public class CreateExtension extends BaseCreateCommand {
+}
+
+=== Part 9 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductRepository extends PagingAndSortingRepository<Product, Long> {
+}
+
+=== Part 10 ===
+Class `com.commerce.backend.model.entity.Discount` declaration:
+@Entity
+@Table(name = "discount")
+public class Discount
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Cart, Order
+The class has following members:
+public methods:
+- Discount()
+- void setId(Long id)
+- void setOrderList(List<Order> orderList)
+- void setCartList(List<Cart> cartList)
+- void setCode(String code)
+- void setDiscountPercent(Integer discountPercent)
+- void setStatus(Integer status)
+- Long getId()
+- List<Order> getOrderList()
+- List<Cart> getCartList()
+- String getCode()
+- Integer getDiscountPercent()
+- Integer getStatus()
+
+
+=== Part 11 ===
+package org.springframework.security.access;
+public class AccessDeniedException extends java.lang.RuntimeException {
+    public AccessDeniedException(java.lang.String msg)
+}
+
+=== Part 12 ===
+package io.quarkus.utilities;
+/**
+ * Enum to classify the os.name system property
+ */
+public enum OS {
+    WINDOWS,
+    LINUX,
+    MAC,
+    OTHER;
+    public static OS determineOS() {
+        final String osName = System.getProperty("os.name").toLowerCase();
+        final OS os;
+        if (osName.contains("windows")) {
+            os = OS.WINDOWS;
+        } else if (osName.contains("linux")
+                || osName.contains("freebsd")
+                || osName.contains("unix")
+                || osName.contains("sunos")
+                || osName.contains("solaris")
+                || osName.contains("aix")) {
+            os = OS.LINUX;
+        } else if (osName.contains("mac os")) {
+            os = OS.MAC;
+        } else {
+            os = OS.OTHER;
+        }
+
+        return os;
+    }
+}
+
+=== Part 13 ===
+Class `com.commerce.backend.model.request.user.RegisterUserRequest` declaration:
+@PasswordMatches
+public class RegisterUserRequest
+The class has following members:
+public methods:
+- RegisterUserRequest()
+- void setEmail(String email)
+- void setPassword(String password)
+- void setPasswordRepeat(String passwordRepeat)
+fields:
+- @NotBlank
+    @Size(min = 3, max = 52)
+    @CustomEmail
+    private String email;
+- @NotBlank
+    @Size(min = 6, max = 52)
+    private String password;
+
+
+=== Part 14 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "cli", header = "Create a Quarkus command-line project.", description = "%n"
+        + "This command will create a Java project in a new ARTIFACT-ID directory.", footer = { "%n"
+                + "For example (using default values), a new Java project will be created in a 'code-with-quarkus' directory; "
+                + "it will use Maven to build an artifact with GROUP-ID='org.acme', ARTIFACT-ID='code-with-quarkus', and VERSION='1.0.0-SNAPSHOT'."
+                + "%n" })
+public class CreateCli extends BaseCreateCommand {
+}
+
+=== Part 15 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "extension", aliases = {
+        "ext" }, header = "Configure extensions of an existing project.", subcommands = {
+                ProjectExtensionsList.class,
+                ProjectExtensionsCategories.class,
+                ProjectExtensionsAdd.class,
+                ProjectExtensionsRemove.class })
+public class ProjectExtensions implements Callable<Integer> {
+}
+
+=== Part 16 ===
+package io.quarkus.cli.config;
+@Command(name = "encrypt", aliases = "enc", header = "Encrypt Secrets", description = "Encrypt a Secret value using the AES/GCM/NoPadding algorithm as a default. The encryption key is generated unless a specific key is set with the --key option.")
+public class Encrypt extends BaseConfigCommand implements Callable<Integer> {
+}
+
+=== Part 17 ===
+package com.commerce.backend.error.exception;
+public class InvalidArgumentException extends RuntimeException {
+    public InvalidArgumentException(String s) { super(s); }
+}
+
+=== Part 18 ===
+package org.springframework.samples.petclinic.api.dto;
+public class PetType {
+public java.lang.String getName()
+}
+
+=== Part 19 ===
+package io.quarkus.devtools.exec;
+public class Executable {
+    public static File findExecutableFile(String base) {
+        String path = null;
+        String executable = base;
+
+        if (OS.determineOS() == OS.WINDOWS) {
+            executable = base + ".cmd";
+            path = findExecutable(executable);
+            if (path == null) {
+                executable = base + ".bat";
+                path = findExecutable(executable);
+            }
+        } else {
+            executable = base;
+            path = findExecutable(executable);
+        }
+        if (path == null)
+            return null;
+        return new File(path, executable);
+    }
+    public static String findExecutable(String exec) {
+        return Stream.of(System.getenv("PATH").split(Pattern.quote(File.pathSeparator))).map(Paths::get)
+                .map(path -> path.resolve(exec).toFile()).filter(File::exists).findFirst().map(File::getParent)
+                .orElse(null);
+    }
+    public static File findExecutable(String name, String errorMessage, MessageWriter output) {
+        File command = findExecutableFile(name);
+        if (command == null) {
+            output.error(errorMessage);
+            throw new RuntimeException("Unable to find " + name + " command");
+        }
+        return command;
+    }
+    public static File findWrapper(Path projectRoot, String[] windows, String other) {
+        if (projectRoot == null) {
+            return null;
+        }
+        if (OS.determineOS() == OS.WINDOWS) {
+            for (String name : windows) {
+                File wrapper = new File(projectRoot + File.separator + name);
+                if (wrapper.isFile())
+                    return wrapper;
+            }
+        } else {
+            File wrapper = new File(projectRoot + File.separator + other);
+            if (wrapper.isFile())
+                return wrapper;
+        }
+
+        // look for a wrapper in a parent directory
+        Path normalizedPath = projectRoot.normalize();
+        if (!normalizedPath.equals(projectRoot.getRoot())) {
+            return findWrapper(normalizedPath.getParent(), windows, other);
+        } else {
+            return null;
+        }
+    }
+}
+
+=== Part 20 ===
+Class `com.commerce.backend.model.request.user.UpdateUserRequest` declaration:
+public class UpdateUserRequest
+The class has following members:
+public methods:
+- UpdateUserRequest()
+- void setFirstName(String firstName)
+- void setLastName(String lastName)
+- void setPhone(String phone)
+fields:
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 26)
+    private String firstName;
+- @Pattern(regexp = "^[a-zA-Z\\s]+$")
+    @Size(min = 3, max = 26)
+    private String lastName;
+- @Pattern(regexp = "[0-9]+")
+    @Size(min = 11, max = 12)
+    private String phone;
+
+
+=== Part 21 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "build", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image.", description = "%n"
+        + "This command will build a container image for the project.", subcommands = { Docker.class,
+                Podman.class,
+                Buildpack.class,
+                Jib.class,
+                Openshift.class }, footer = { "%n"
+                        + "For example (using default values), it will create a container image using docker with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'."
+                        + "%n" }, headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Build extends BaseImageCommand {
+}
+
+=== Part 22 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "docker", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using Docker.", description = "%n"
+        + "This command will build or push a container image for the project, using Docker.", footer = "%n"
+                + "For example (using default values), it will create a container image using with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Docker extends BaseImageSubCommand {
+}
+
+=== Part 23 ===
+package picocli;
+public class CommandLine {
+    public static final java.lang.String VERSION = "4.7.6";
+    public java.io.PrintWriter getOut()
+    public java.io.PrintWriter getErr()
+    public static class Help {
+        public static enum Ansi {
+            AUTO
+ ON
+ OFF
+            static picocli.CommandLine.Help.Ansi.Text EMPTY_TEXT;
+            static java.lang.Boolean tty;
+            static java.lang.Boolean jansiInstalled;
+Inner Class `CommandLine.Help.Ansi.Text` declaration:
+public class Text implements Cloneable
+The class uses the following imports:
+- from package picocli: CommandLine.Help.ColorScheme, CommandLine.Help.Ansi.Text
+The class has following members:
+public methods:
+- Text(int maxLength)
+- Text(int maxLength, CommandLine.Help.ColorScheme colorScheme)
+- Text(CommandLine.Help.Ansi.Text other)
+- Text(String input)
+- Text(String input, CommandLine.Help.ColorScheme colorScheme)
+
+        }
+        public static class ColorScheme {
+            ColorScheme(picocli.CommandLine.Help.ColorScheme.Builder builder)
+            public static class Builder {
+                public Builder()
+                public Builder(picocli.CommandLine.Help.Ansi ansi)
+                public Builder(picocli.CommandLine.Help.ColorScheme existing)
+            }
+        }
+    }
+    public static final class Model {
+Inner Class `CommandLine.Model.CommandSpec` declaration:
+public static class CommandSpec
+The class uses the following imports:
+- from package picocli: CommandLine.Model.CommandSpec, CommandLine
+The class has following members:
+public methods:
+- CommandLine.Model.CommandSpec setAddMethodSubcommands(Boolean addMethodSubcommands)
+- CommandLine commandLine()
+- Object userObject()
+- CommandLine.Model.CommandSpec root()
+fields:
+- public static final String DEFAULT_COMMAND_NAME = "<main class>";
+- static final Boolean DEFAULT_IS_HELP_COMMAND;
+- static final Boolean DEFAULT_IS_ADD_METHOD_SUBCOMMANDS;
+- static final Boolean DEFAULT_INTERPOLATE_VARIABLES;
+- static final Boolean DEFAULT_SUBCOMMANDS_REPEATABLE;
+
+    }
+    private static class NoVersionProvider implements picocli.CommandLine.IVersionProvider {
+    }
+    public static interface IVersionProvider {
+    }
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.LOCAL_VARIABLE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE, java.lang.annotation.ElementType.METHOD})
+    public static @interface Command {
+        java.lang.String name() default "<main class>"
+        java.lang.String[] aliases() default {}
+        java.lang.Class<?>[] subcommands() default {}
+        boolean subcommandsRepeatable() default false
+        java.lang.String[] version() default {}
+        java.lang.Class<? extends picocli.CommandLine.IVersionProvider> versionProvider() default picocli.CommandLine.NoVersionProvider.class
+        boolean mixinStandardHelpOptions() default false
+        boolean helpCommand() default false
+        java.lang.String headerHeading() default ""
+        java.lang.String[] header() default {}
+        java.lang.String synopsisHeading() default "Usage: "
+        java.lang.String[] description() default {}
+        java.lang.String parameterListHeading() default ""
+        java.lang.String optionListHeading() default ""
+        boolean sortOptions() default true
+        boolean showDefaultValues() default false
+        boolean showEndOfOptionsDelimiterInUsageHelp() default false
+        java.lang.String commandListHeading() default "Commands:%n"
+        java.lang.String[] footer() default {}
+        boolean hidden() default false
+        picocli.CommandLine.ScopeType scope() default picocli.CommandLine.ScopeType.LOCAL
+    }
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD})
+    public static @interface Spec {
+        picocli.CommandLine.Spec.Target value() default picocli.CommandLine.Spec.Target.SELF
+        static enum Target {
+ MIXEE
+        }
+    }
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PARAMETER})
+    public static @interface Mixin {
+        java.lang.String name() default ""
+    }
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER})
+    public static @interface Option {
+        java.lang.String[] names()
+        java.lang.String[] description() default {}
+        boolean hidden() default false
+    }
+    public static enum ScopeType {
+ INHERIT
+    }
+    public static final class ExitCode {
+        public static final int OK = 0;
+        public static final int SOFTWARE = 1;
+    }
+}
+
+=== Part 24 ===
+package javax.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 25 ===
+package io.quarkus.devtools.messagewriter;
+public interface MessageWriter {
+    void error(String msg)
+}
+
+=== Part 26 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "create", header = "Create a new project.", subcommands = {
+        CreateApp.class,
+        CreateCli.class,
+        CreateExtension.class })
+public class Create implements Callable<Integer> {
+}
+
+=== Part 27 ===
+package javax.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 28 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "build", showEndOfOptionsDelimiterInUsageHelp = true, header = "Build the current project.")
+public class Build extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 29 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "run", sortOptions = false, mixinStandardHelpOptions = false, header = "Run application.")
+public class Run extends BuildToolDelegatingCommand {
+}
+
+=== Part 30 ===
+package io.quarkus.cli.deploy;
+@CommandLine.Command(name = "kubernetes", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Perform the deploy action on Kubernetes.", description = "%n"
+        + "The command will deploy the application on Kubernetes.", footer = "%n"
+                + "For example (using default values), it will create a Deployment named '<project.artifactId>' using the image with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>' and will deploy it to the target cluster.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Kubernetes extends BaseKubernetesDeployCommand {
+}
+
+=== Part 31 ===
+package com.commerce.backend.converter.user;
+@Component
+public class UserResponseConverter implements Function<User, UserResponse> {
+}
+
+=== Part 32 ===
+package com.commerce.backend.converter.cart;
+@Component
+public class CartResponseConverter implements Function<Cart, CartResponse> {
+}
+
+=== Part 33 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "app", header = "Create a Quarkus application project.", description = "%n"
+        + "This command will create a Java project in a new ARTIFACT-ID directory", footer = { "%n"
+                + "For example (using default values), a new Java project will be created in a 'code-with-quarkus' directory; "
+                + "it will use Maven to build an artifact with GROUP-ID='org.acme', ARTIFACT-ID='code-with-quarkus', and VERSION='1.0.0-SNAPSHOT'."
+                + "%n" })
+public class CreateApp extends BaseCreateCommand {
+}
+
+=== Part 34 ===
+package org.springframework.cloud.client.circuitbreaker;
+public interface ReactiveCircuitBreaker {
+    <T> reactor.core.publisher.Mono<T> run(reactor.core.publisher.Mono<T> toRun, java.util.function.Function<java.lang.Throwable,reactor.core.publisher.Mono<T>> fallback)
+}
+
+=== Part 35 ===
+package com.commerce.backend.service;
+public interface ProductService {
+}
+
+=== Part 36 ===
+package com.commerce.backend.model.response.product;
+public class ProductResponse {
+public java.lang.String getName()
+public java.lang.String getUrl()
+public java.util.List<com.commerce.backend.model.dto.ProductVariantDTO> getProductVariants()
+}
+
+=== Part 37 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "test", showEndOfOptionsDelimiterInUsageHelp = true, header = "Run the current project in continuous testing mode.")
+public class Test extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 38 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "remove", aliases = "rm", header = "Remove extension(s) from this project.")
+public class ProjectExtensionsRemove extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 39 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 40 ===
+package com.commerce.backend.validator;
+public class CustomEmailValidator implements ConstraintValidator<CustomEmail, String> {
+}
+
+=== Part 41 ===
+package javax.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 42 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "categories", aliases = "cat", header = "List extension categories.")
+public class ProjectExtensionsCategories extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 43 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "add", header = "Add extension(s) to this project.")
+public class ProjectExtensionsAdd extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 44 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "completion", version = "generate-completion "
+        + CommandLine.VERSION, header = "bash/zsh completion:  source <(${PARENT-COMMAND-FULL-NAME:-$PARENTCOMMAND} ${COMMAND-NAME})", helpCommand = true)
+public class Completion extends GenerateCompletion {
+}
+
+=== Part 45 ===
+Class `com.commerce.backend.model.entity.ProductCategory` declaration:
+@Entity
+@Table(name = "product_category")
+public class ProductCategory
+The class has following members:
+public methods:
+- ProductCategory()
+- void setId(Long id)
+- void setName(String name)
+- Long getId()
+- String getName()
+
+
+=== Part 46 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class DiscountDTO {
+    private Integer discountPercent;
+    private Integer status;
+public java.lang.Integer getDiscountPercent()
+public java.lang.Integer getStatus()
+}
+
+=== Part 47 ===
+package org.springframework.samples.petclinic.api.application;
+@Component
+public class CustomersServiceClient {
+    private final WebClient.Builder webClientBuilder;
+    public Mono<OwnerDetails> getOwner(final int ownerId) {
+        return webClientBuilder.build().get()
+            .uri("http://customers-service/owners/{ownerId}", ownerId)
+            .retrieve()
+            .bodyToMono(OwnerDetails.class);
+    }
+public CustomersServiceClient(org.springframework.web.reactive.function.client.WebClient.Builder webClientBuilder)
+}
+
+=== Part 48 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "list", aliases = "ls", header = "List platforms and extensions. ", footer = {
+        "%nList modes:%n",
+        "(relative). Active when invoked within a project unless an explicit release is specified. " +
+                "The current project configuration will determine what extensions are listed, " +
+                "with installed (available) extensions listed by default.%n",
+        "(absolute). Active when invoked outside of a project or when an explicit release is specified. " +
+                "All extensions for the specified release will be listed. " +
+                "The CLI release will be used if this command is invoked outside of a project and no other release is specified.%n" })
+public class ProjectExtensionsList extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 49 ===
+package com.commerce.backend.converter.user;
+@Component
+public class UserResponseConverter implements Function<User, UserResponse> {
+}
+
+=== Part 50 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "version", header = "Display CLI version information.", hidden = true)
+public class Version implements CommandLine.IVersionProvider, Callable<Integer> {
+}
+
+=== Part 51 ===
+Class `com.commerce.backend.model.entity.ProductCategory` declaration:
+@Entity
+@Table(name = "product_category")
+public class ProductCategory
+The class has following members:
+public methods:
+- ProductCategory()
+- void setId(Long id)
+- void setName(String name)
+- Long getId()
+- String getName()
+
+
+=== Part 52 ===
+package com.commerce.backend.service;
+@Service
+public class UserServiceImpl implements UserService {
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           UserResponseConverter userResponseConverter)
+}
+
+=== Part 53 ===
+package javax.persistence;
+@java.lang.annotation.Repeatable(javax.persistence.JoinColumns.class)
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface JoinColumn {
+    java.lang.String name() default ""
+}
+
+=== Part 54 ===
+package io.quarkus.cli.deploy;
+@CommandLine.Command(name = "knative", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Perform the deploy action on Knative.", description = "%n"
+        + "The command will deploy the application on Knative.", footer = "%n"
+                + "For example (using default values), it will create a Deployment named '<project.artifactId>' using the image with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>' and will deploy it to the target cluster.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Knative extends BaseKubernetesDeployCommand {
+}
+
+=== Part 55 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Column {
+    java.lang.String name() default ""
+}
+
+=== Part 56 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "plugin", aliases = { "plug" }, header = "Configure plugins of the Quarkus CLI.", subcommands = {
+        CliPluginsList.class,
+        CliPluginsAdd.class,
+        CliPluginsRemove.class,
+        CliPluginsSync.class
+})
+public class CliPlugins implements Callable<Integer> {
+}
+
+=== Part 57 ===
+package io.quarkus.cli.deploy;
+@CommandLine.Command(name = "kind", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Perform the deploy action on Kind.", description = "%n"
+        + "The command will deploy the application on Kind.", footer = "%n"
+                + "For example (using default values), it will create a Deployment named '<project.artifactId>' using the image with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>' and will deploy it to the target cluster.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Kind extends BaseKubernetesDeployCommand {
+}
+
+=== Part 58 ===
+package com.commerce.backend.service.cache;
+@Service
+@CacheConfig(cacheNames = "product")
+public class ProductCacheServiceImpl implements ProductCacheService {
+    @Autowired
+    public ProductCacheServiceImpl(ProductRepository productRepository)
+}
+
+=== Part 59 ===
+package io.quarkus.cli;
+@Command(name = "config", header = "Manage Quarkus configuration", subcommands = { SetConfig.class, RemoveConfig.class,
+        Encrypt.class })
+public class Config implements Callable<Integer> {
+}
+
+=== Part 60 ===
+package javax.persistence;
+public enum FetchType {
+ EAGER
+}
+
+=== Part 61 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "buildpack", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using Buildpack.", description = "%n"
+        + "This command will build or push a container image for the project, using Buildpack.", footer = "%n"
+                + "For example (using default values), it will create a container image using with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Buildpack extends BaseImageSubCommand {
+}
+
+=== Part 62 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "remove", header = "Remove plugin(s) to the Quarkus CLI.")
+public class CliPluginsRemove extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 63 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "jib", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using Jib.", description = "%n"
+        + "This command will build or push a container image for the project, using Jib.", footer = "%n"
+                + "For example (using default values), it will create a container image using with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Jib extends BaseImageSubCommand {
+}
+
+=== Part 64 ===
+package com.commerce.backend.dao;
+@Repository
+public interface CartRepository extends CrudRepository<Cart, Long> {
+}
+
+=== Part 65 ===
+package com.commerce.backend.validator;
+public class CustomEmailValidator implements ConstraintValidator<CustomEmail, String> {
+}
+
+=== Part 66 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "info", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Display project information and verify versions health (platform and extensions).", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "%nOptions:%n")
+public class Info extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 67 ===
+package io.quarkus.cli.deploy;
+@CommandLine.Command(name = "minikube", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Perform the deploy action on minikube.", description = "%n"
+        + "The command will deploy the application on minikube.", footer = "%n"
+                + "For example (using default values), it will create a Deployment named '<project.artifactId>' using the image with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>' and will deploy it to the target cluster.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Minikube extends BaseKubernetesDeployCommand {
+}
+
+=== Part 68 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Temporal {
+    jakarta.persistence.TemporalType value()
+}
+
+=== Part 69 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "list", aliases = "ls", header = "List CLI plugins. ")
+public class CliPluginsList extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 70 ===
+Class `org.springframework.samples.petclinic.vets.model.Vet` declaration:
+@Entity
+@Table(name = "vets")
+public class Vet
+The class has following members:
+public methods:
+- protected Set<Specialty> getSpecialtiesInternal()
+- @XmlElement
+    List<Specialty> getSpecialties()
+- int getNrOfSpecialties()
+- Integer getId()
+- String getFirstName()
+- String getLastName()
+
+
+=== Part 71 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "add", header = "Add a Quarkus extension registry", description = "%n"
+        + "This command will add a Quarkus extension registry to the registry client configuration unless it's already present.")
+public class RegistryAddCommand extends BaseRegistryCommand {
+}
+
+=== Part 72 ===
+package com.commerce.backend.service;
+@Service
+public class UserServiceImpl implements UserService {
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           UserResponseConverter userResponseConverter)
+}
+
+=== Part 73 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "list", header = "List enabled Quarkus registries", description = "%n"
+        + "This command will list currently enabled Quarkus extension registries.")
+public class RegistryListCommand extends BaseRegistryCommand {
+}
+
+=== Part 74 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "registry", header = "Configure Quarkus registry client", subcommands = {
+        RegistryListCommand.class,
+        RegistryAddCommand.class,
+        RegistryRemoveCommand.class })
+public class Registry implements Callable<Integer> {
+}
+
+=== Part 75 ===
+package com.commerce.backend.service;
+@Service
+public class CartServiceImpl implements CartService {
+    @Autowired
+    public CartServiceImpl(CartRepository cartRepository,
+                           ProductService productService,
+                           UserService userService,
+                           CartResponseConverter cartResponseConverter)
+}
+
+=== Part 76 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "add", header = "Add plugin(s) to the Quarkus CLI.")
+public class CliPluginsAdd extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 77 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "dev", showEndOfOptionsDelimiterInUsageHelp = true, header = "Run the current project in dev (live coding) mode.")
+public class Dev extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 78 ===
+package com.commerce.backend.service.cache;
+public interface ProductCacheService {
+    List<Product> getRelatedProducts(ProductCategory productCategory, Long id)
+}
+
+=== Part 79 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "podman", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using Podman.", description = "%n"
+        + "This command will build or push a container image for the project, using Podman.", footer = "%n"
+                + "For example (using default values), it will create a container image using with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Podman extends BaseImageSubCommand {
+}
+
+=== Part 80 ===
+package io.quarkus.cli.config;
+@CommandLine.Command(name = "remove", header = "Removes a configuration from application.properties")
+public class RemoveConfig extends BaseConfigCommand implements Callable<Integer> {
+}
+
+=== Part 81 ===
+package com.commerce.backend.service;
+public interface UserService {
+    User saveUser(User user)
+    User findByEmail(String email)
+}
+
+=== Part 82 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class DiscountDTO {
+public java.lang.Integer getDiscountPercent()
+public java.lang.Integer getStatus()
+}
+
+=== Part 83 ===
+package io.quarkus.cli.common;
+public class OutputOptionMixin implements MessageWriter {
+    static final boolean picocliDebugEnabled = "DEBUG".equalsIgnoreCase(System.getProperty("picocli.trace"));
+    boolean verbose = false;
+    @CommandLine.Option(names = { "-e", "--errors" }, description = "Print more context on errors and exceptions.")
+    boolean showErrors;
+    @CommandLine.Option(names = {
+            "--cli-test" }, hidden = true, description = "Manually set output streams for unit test purposes.")
+    boolean cliTestMode;
+    Path testProjectRoot;
+    @CommandLine.Option(names = { "--cli-test-dir" }, hidden = true)
+    void setTestProjectRoot(String path)
+    @CommandLine.Spec(CommandLine.Spec.Target.MIXEE)
+    CommandSpec mixee;
+    ColorScheme scheme;
+    PrintWriter out;
+    PrintWriter err;
+    public PrintWriter out() {
+        PrintWriter o = out;
+        if (o == null) {
+            o = out = mixee.commandLine().getOut();
+        }
+        return o;
+    }
+    public PrintWriter err() {
+        PrintWriter e = err;
+        if (e == null) {
+            e = err = mixee.commandLine().getErr();
+        }
+        return e;
+    }
+    private static OutputOptionMixin getOutput(CommandSpec commandSpec) {
+        return ((QuarkusCli) commandSpec.root().userObject()).getOutput();
+    }
+    @CommandLine.Option(names = { "--verbose" }, description = "Verbose mode.")
+    public void setVerbose(boolean verbose)
+    public boolean getVerbose() { return getOutput(mixee).verbose; }
+    public boolean isVerbose() { return getVerbose() || picocliDebugEnabled; }
+    public boolean isCliTest() { return cliTestMode; }
+}
+
+=== Part 84 ===
+package com.commerce.backend.model.entity;
+@Entity
+@Table(name = "product_category")
+public class ProductCategory {
+    @Column(name = "name")
+    private String name;
+}
+
+=== Part 85 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "quarkus", subcommands = {
+        Create.class,
+        Build.class,
+        Dev.class,
+        Run.class,
+        Test.class,
+        Config.class,
+        ProjectExtensions.class,
+        Image.class,
+        Deploy.class,
+        Registry.class,
+        Info.class,
+        Update.class,
+        Version.class,
+        CliPlugins.class,
+        Completion.class }, scope = ScopeType.INHERIT, sortOptions = false, showDefaultValues = true, versionProvider = Version.class, subcommandsRepeatable = false, mixinStandardHelpOptions = false, commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", optionListHeading = "Options:%n", headerHeading = "%n", parameterListHeading = "%n")
+public class QuarkusCli implements QuarkusApplication, Callable<Integer> {
+    @CommandLine.Mixin(name = "output")
+    OutputOptionMixin output;
+    public OutputOptionMixin getOutput() { return output; }
+}
+
+=== Part 86 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "push", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Push a container image.", description = "%n"
+        + "This command will build and push a container image for the project.", footer = "%n", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Push extends BaseImageCommand {
+}
+
+=== Part 87 ===
+package io.quarkus.cli.config;
+@Command(name = "set", header = "Sets a configuration in application.properties")
+public class SetConfig extends BaseConfigCommand implements Callable<Integer> {
+}
+
+=== Part 88 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductVariantRepository extends PagingAndSortingRepository<ProductVariant, Long>,
+        JpaSpecificationExecutor<ProductVariant> {
+}
+
+=== Part 89 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "openshift", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using OpenShift.", description = "%n"
+        + "This command will build or push a container image for the project, using Openshift.", footer = "%n"
+                + "For example (using default values), it will create a container image in OpenShift using the docker build strategy with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Openshift extends BaseImageSubCommand implements Callable<Integer> {
+}
+
+=== Part 90 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "deploy", sortOptions = false, mixinStandardHelpOptions = false, header = "Deploy application.", subcommands = {
+        Kubernetes.class, Openshift.class, Knative.class, Kind.class, Minikube.class,
+}, headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", optionListHeading = "%nOptions:%n")
+public class Deploy extends BuildToolDelegatingCommand {
+}
+
+=== Part 91 ===
+package com.commerce.backend.service;
+@Service
+public class UserServiceImpl implements UserService {
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           UserResponseConverter userResponseConverter)
+}
+
+=== Part 92 ===
+package javax.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 93 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class DiscountDTO {
+public java.lang.Integer getDiscountPercent()
+public java.lang.Integer getStatus()
+}
+
+=== Part 94 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "remove", header = "Remove a Quarkus extension registry", description = "%n"
+        + "This command will remove a Quarkus extension registry from the registry client configuration.")
+public class RegistryRemoveCommand extends BaseRegistryCommand {
+}
+
+=== Part 95 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Column {
+    java.lang.String name() default ""
+}
+
+=== Part 96 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "sync", header = "Sync (discover / purge) CLI Plugins.")
+public class CliPluginsSync extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 97 ===
+package org.reactivestreams;
+public interface Publisher <T> {
+}
+
+=== Part 98 ===
+package com.commerce.backend.converter.user;
+@Component
+public class UserResponseConverter implements Function<User, UserResponse> {
+    @Override
+    public UserResponse apply(User user) {
+        UserResponse userResponse = new UserResponse();
+        userResponse.setEmail(user.getEmail());
+        userResponse.setFirstName(user.getFirstName());
+        userResponse.setLastName(user.getLastName());
+        userResponse.setAddress(user.getAddress());
+        userResponse.setCity(user.getCity());
+        userResponse.setState(user.getState());
+        userResponse.setZip(user.getZip());
+        userResponse.setPhone(user.getPhone());
+        userResponse.setCountry(user.getCountry());
+        userResponse.setEmailVerified(user.getEmailVerified());
+        return userResponse;
+    }
+}
+
+=== Part 99 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "image", sortOptions = false, mixinStandardHelpOptions = false, header = "Build or push project container image.", subcommands = {
+        Build.class, Push.class
+}, headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", optionListHeading = "%nOptions:%n")
+public class Image implements Callable<Integer> {
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

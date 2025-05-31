@@ -1,0 +1,600 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package org.springframework.samples.petclinic.vets.web;
+@RequestMapping("/vets")
+@RestController
+class VetResource {
+    private final VetRepository vetRepository;
+    @GetMapping
+    @Cacheable("vets")
+    public List<Vet> showResourcesVetList() {
+        return vetRepository.findAll();
+    }
+public VetResource(org.springframework.samples.petclinic.vets.model.VetRepository vetRepository)
+}
+
+**Test scenarios (1 total):**
+0) Verify that retrieving the veterinarian list returns all available veterinarian details with their specialties and leverages caching
+Steps: Given the veterinarian repository is pre-populated with multiple veterinarian records and their associated specialties
+When a client sends a GET request to the veterinarians endpoint
+Then the system should return a collection of veterinarian records containing basic details like first name, last name, and specialty count
+And each veterinarian record should expose a list of specialties with their descriptive names
+And the retrieved veterinarian list should be cached for future requests
+
+
+
+**Context parts (0-4):**
+
+=== Part 0 ===
+package org.springframework.samples.petclinic.vets.model;
+/**
+ * Repository class for <code>Vet</code> domain objects All method names are compliant with Spring Data naming
+ * conventions so this interface can easily be extended for Spring Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface VetRepository extends JpaRepository<Vet, Integer> {
+}
+
+=== Part 1 ===
+Class `org.springframework.samples.petclinic.vets.model.Vet` declaration:
+@Entity
+@Table(name = "vets")
+public class Vet
+The class has following members:
+public methods:
+- protected Set<Specialty> getSpecialtiesInternal()
+- @XmlElement
+    List<Specialty> getSpecialties()
+- int getNrOfSpecialties()
+- Integer getId()
+- String getFirstName()
+- String getLastName()
+
+
+=== Part 2 ===
+package org.springframework.samples.petclinic.vets.model;
+/**
+ * Models a {@link Vet Vet's} specialty (for example, dentistry).
+
+ */
+
+@Entity
+@Table(name = "specialties")
+public class Specialty {
+public java.lang.Integer getId()
+public java.lang.String getName()
+}
+
+=== Part 3 ===
+package jakarta.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 4 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package com.commerce.backend.api;
+@RestController
+public class ProductController extends PublicApiController {
+    private final ProductService productService;
+    @Autowired
+    public ProductController(ProductService productService) {
+        this.productService = productService;
+    }
+    @GetMapping(value = "/product")
+    public ResponseEntity<List<ProductVariantResponse>> getAll(@RequestParam("page") Integer page,
+                                                               @RequestParam("size") Integer pageSize,
+                                                               @RequestParam(value = "sort", required = false) String sort,
+                                                               @RequestParam(value = "category", required = false) String category,
+                                                               @RequestParam(value = "minPrice", required = false) Float minPrice,
+                                                               @RequestParam(value = "maxPrice", required = false) Float maxPrice,
+                                                               @RequestParam(value = "color", required = false) String color) {
+        if (Objects.isNull(page) || page < 0) {
+            throw new InvalidArgumentException("Invalid page");
+        }
+        if (Objects.isNull(pageSize) || pageSize < 0) {
+            throw new InvalidArgumentException("Invalid pageSize");
+        }
+        List<ProductVariantResponse> products = productService.getAll(page, pageSize, sort, category, minPrice, maxPrice, color);
+        return new ResponseEntity<>(products, HttpStatus.OK);
+    }
+    @GetMapping(value = "/product/count")
+    public ResponseEntity<Long> getAllCount(@RequestParam(value = "category", required = false) String category,
+                                            @RequestParam(value = "minPrice", required = false) Float minPrice,
+                                            @RequestParam(value = "maxPrice", required = false) Float maxPrice,
+                                            @RequestParam(value = "color", required = false) String color) {
+        Long productCount = productService.getAllCount(category, minPrice, maxPrice, color);
+        return new ResponseEntity<>(productCount, HttpStatus.OK);
+    }
+    @GetMapping(value = "/product/{url}")
+    public ResponseEntity<ProductDetailsResponse> getByUrl(@PathVariable("url") String url) {
+        if (url.isBlank()) {
+            throw new InvalidArgumentException("Invalid url params");
+        }
+        ProductDetailsResponse productDetailsResponse = productService.findByUrl(url);
+        return new ResponseEntity<>(productDetailsResponse, HttpStatus.OK);
+    }
+    @GetMapping(value = "/product/related/{url}")
+    public ResponseEntity<List<ProductResponse>> getByRelated(@PathVariable("url") String url) {
+        if (url.isBlank()) {
+            throw new InvalidArgumentException("Invalid url params");
+        }
+        List<ProductResponse> products = productService.getRelatedProducts(url);
+        return new ResponseEntity<>(products, HttpStatus.OK);
+    }
+    @GetMapping(value = "/product/recent")
+    public ResponseEntity<List<ProductResponse>> getByNewlyAdded() {
+        List<ProductResponse> products = productService.getNewlyAddedProducts();
+        return new ResponseEntity<>(products, HttpStatus.OK);
+    }
+    @GetMapping(value = "/product/mostselling")
+    public ResponseEntity<List<ProductVariantResponse>> getByMostSelling() {
+        List<ProductVariantResponse> products = productService.getMostSelling();
+        return new ResponseEntity<>(products, HttpStatus.OK);
+    }
+    @GetMapping(value = "/product/interested")
+    public ResponseEntity<List<ProductResponse>> getByInterested() {
+        List<ProductResponse> products = productService.getInterested();
+        return new ResponseEntity<>(products, HttpStatus.OK);
+    }
+    @GetMapping(value = "/product/search")
+    public ResponseEntity<List<ProductResponse>> searchProduct(@RequestParam("page") Integer page,
+                                                               @RequestParam("size") Integer size,
+                                                               @RequestParam("keyword") String keyword) {
+        List<ProductResponse> products = productService.searchProductDisplay(keyword, page, size);
+        return new ResponseEntity<>(products, HttpStatus.OK);
+    }
+}
+
+**Test scenarios (8 total):**
+0) Verify that retrieving products with valid pagination and filters returns a list of product variant responses
+Steps: Given the product database is populated with various products
+When a request is made to retrieve all products with a valid page index, size, and optional filters such as sort order, category, minimum price, maximum price, and color
+Then the system should return a successful response with a list of product variant responses and an HTTP status code indicating success
+
+1) Verify that when an invalid page parameter is provided, the system throws an invalid argument exception for pagination
+Steps: Given the system expects a valid non-negative page index for product retrieval
+When a request is made to retrieve all products with a negative page number and a valid page size
+Then the system should raise an InvalidArgumentException with a message indicating the page parameter is invalid
+
+2) Verify that counting products with specific filters returns the accurate count of products available
+Steps: Given the product database contains products across multiple categories and varying price ranges
+When a request is made to count products filtered by category, minimum price, maximum price, and color
+Then the system should return a successful response with the accurate count of products that match the criteria and an HTTP status code indicating success
+
+3) Verify that retrieving product details with a valid URL returns detailed product information
+Steps: Given a product with comprehensive details exists in the system
+When a request is made to retrieve product details using a valid, non-blank URL parameter
+Then the system should return a successful response with detailed product information including the name, URL, SKU, long description, category, and variant details, along with an HTTP status code indicating success
+
+4) Verify that retrieving product details with a blank URL parameter results in an invalid argument exception
+Steps: Given the system expects a valid, non-blank URL to retrieve product details
+When a request is made to retrieve product details with a blank URL parameter
+Then the system should raise an InvalidArgumentException with a message indicating the URL parameter is invalid
+
+5) Verify that retrieving related products using a valid product URL returns a list of related product responses
+Steps: Given a product exists in the system and has related products
+When a request is made to retrieve related products using a valid non-blank URL parameter
+Then the system should return a successful response with a list of related product responses and an HTTP status code indicating success
+
+6) Verify that searching for products with a valid keyword and pagination returns matching product responses
+Steps: Given the product database is searchable and contains products that match various keywords
+When a request is made to search for products using a valid keyword along with correct page and size parameters
+Then the system should return a successful response with a list of product responses that correspond to the search keyword and an HTTP status code indicating success
+
+7) Verify that retrieving the most selling products returns a list of product variant responses sorted by popularity
+Steps: Given the system maintains sales data to determine product popularity
+When a request is made to retrieve the most selling products
+Then the system should return a successful response with a list of product variant responses reflecting the most popular products and an HTTP status code indicating success
+
+
+
+**Context parts (0-39):**
+
+=== Part 0 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductRepository extends PagingAndSortingRepository<Product, Long> {
+}
+
+=== Part 1 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "remove", header = "Remove plugin(s) to the Quarkus CLI.")
+public class CliPluginsRemove extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 2 ===
+package org.springframework.samples.petclinic.customers.model;
+/**
+ * Repository class for <code>Owner</code> domain objects All method names are compliant with Spring Data naming
+ * conventions so this interface can easily be extended for Spring Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface OwnerRepository extends JpaRepository<Owner, Integer> {
+}
+
+=== Part 3 ===
+package com.commerce.backend.service;
+@Service
+public class ProductServiceImpl implements ProductService {
+    @Autowired
+    public ProductServiceImpl(ProductCacheService productCacheService,
+                              ProductRepository productRepository,
+                              ProductVariantRepository productVariantRepository,
+                              ProductVariantCacheService productVariantCacheService,
+                              ProductResponseConverter productResponseConverter,
+                              ProductVariantResponseConverter productVariantResponseConverter,
+                              ProductDetailsResponseConverter productDetailsResponseConverter)
+}
+
+=== Part 4 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 5 ===
+Class `com.commerce.backend.model.response.product.ProductVariantResponse` declaration:
+public class ProductVariantResponse
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: ProductVariantDTO
+The class has following members:
+public methods:
+- Long getId()
+- String getName()
+- String getUrl()
+- ProductVariantDTO getProductVariant()
+
+
+=== Part 6 ===
+package com.commerce.backend.service;
+public interface ProductService {
+    ProductDetailsResponse findByUrl(String url)
+    List<ProductVariantResponse> getAll(Integer page, Integer size, String sort, String category, Float minPrice, Float maxPrice, String color)
+    Long getAllCount(String category, Float minPrice, Float maxPrice, String color)
+    List<ProductResponse> getRelatedProducts(String url)
+    List<ProductResponse> getNewlyAddedProducts()
+    List<ProductVariantResponse> getMostSelling()
+    List<ProductResponse> getInterested()
+    List<ProductResponse> searchProductDisplay(String keyword, Integer page, Integer size)
+}
+
+=== Part 7 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductVariantRepository extends PagingAndSortingRepository<ProductVariant, Long>,
+        JpaSpecificationExecutor<ProductVariant> {
+}
+
+=== Part 8 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "version", header = "Display CLI version information.", hidden = true)
+public class Version implements CommandLine.IVersionProvider, Callable<Integer> {
+}
+
+=== Part 9 ===
+package org.springframework.samples.petclinic.customers.model;
+/**
+
+ * Can be Cat, Dog, Hamster...
+ */
+@Entity
+@Table(name = "types")
+public class PetType {
+public java.lang.Integer getId()
+public java.lang.String getName()
+}
+
+=== Part 10 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "cli", header = "Create a Quarkus command-line project.", description = "%n"
+        + "This command will create a Java project in a new ARTIFACT-ID directory.", footer = { "%n"
+                + "For example (using default values), a new Java project will be created in a 'code-with-quarkus' directory; "
+                + "it will use Maven to build an artifact with GROUP-ID='org.acme', ARTIFACT-ID='code-with-quarkus', and VERSION='1.0.0-SNAPSHOT'."
+                + "%n" })
+public class CreateCli extends BaseCreateCommand {
+}
+
+=== Part 11 ===
+package jakarta.persistence;
+@java.lang.annotation.Repeatable(jakarta.persistence.JoinColumns.class)
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface JoinColumn {
+    java.lang.String name() default ""
+}
+
+=== Part 12 ===
+package com.commerce.backend.service.cache;
+@Service
+@CacheConfig(cacheNames = "product")
+public class ProductCacheServiceImpl implements ProductCacheService {
+    @Autowired
+    public ProductCacheServiceImpl(ProductRepository productRepository)
+}
+
+=== Part 13 ===
+package reactor.core.publisher;
+public abstract class Mono <T> implements reactor.core.CorePublisher<T> {
+    static final java.util.function.BiPredicate EQUALS_BIPREDICATE;
+}
+
+=== Part 14 ===
+package org.springframework.samples.petclinic.customers.model;
+/**
+ * Repository class for <code>Pet</code> domain objects All method names are compliant with Spring Data naming
+ * conventions so this interface can easily be extended for Spring Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface PetRepository extends JpaRepository<Pet, Integer> {
+/**
+     * Retrieve all {@link PetType}s from the data store.
+     * @return a Collection of {@link PetType}s.
+     */
+        @Query("SELECT ptype FROM PetType ptype ORDER BY ptype.name") List<PetType> findPetTypes()
+    @Query("FROM PetType ptype WHERE ptype.id = :typeId") Optional<PetType> findPetTypeById(@Param("typeId") int typeId)
+}
+
+=== Part 15 ===
+package org.reactivestreams;
+public interface Publisher <T> {
+}
+
+=== Part 16 ===
+package com.commerce.backend.service.cache;
+public interface ProductCacheService {
+}
+
+=== Part 17 ===
+package com.commerce.backend.service.cache;
+@Service
+@CacheConfig(cacheNames = "product_variant")
+public class ProductVariantCacheServiceImpl implements ProductVariantCacheService {
+    @Autowired
+    public ProductVariantCacheServiceImpl(ProductVariantRepository productVariantRepository)
+}
+
+=== Part 18 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductDetailsResponseConverter implements Function<Product, ProductDetailsResponse> {
+}
+
+=== Part 19 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 20 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class ColorDTO {
+public java.lang.String getName()
+public java.lang.String getHex()
+}
+
+=== Part 21 ===
+Class `com.commerce.backend.model.response.product.ProductDetailsResponse` declaration:
+public class ProductDetailsResponse
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: ProductVariantDetailDTO, CategoryDTO
+The class has following members:
+public methods:
+- String getName()
+- String getUrl()
+- String getSku()
+- String getLongDesc()
+- CategoryDTO getCategory()
+- List<ProductVariantDetailDTO> getProductVariantDetails()
+
+
+=== Part 22 ===
+package com.commerce.backend.model.response.product;
+public class ProductResponse {
+public java.lang.String getName()
+public java.lang.String getUrl()
+public java.util.List<com.commerce.backend.model.dto.ProductVariantDTO> getProductVariants()
+}
+
+=== Part 23 ===
+Class `com.commerce.backend.model.dto.ProductVariantDTO` declaration:
+@Builder
+public class ProductVariantDTO
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: ColorDTO
+The class has following members:
+public methods:
+- Long getId()
+- Float getPrice()
+- String getThumb()
+- Integer getStock()
+- ColorDTO getColor()
+
+
+=== Part 24 ===
+Class `com.commerce.backend.model.dto.ProductVariantDetailDTO` declaration:
+@Builder
+public class ProductVariantDetailDTO
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: ColorDTO
+The class has following members:
+public methods:
+- Long getId()
+- String getWidth()
+- String getHeight()
+- String getComposition()
+- Float getPrice()
+- Float getCargoPrice()
+- Float getTaxPercent()
+- String getImage()
+- String getThumb()
+- Integer getStock()
+- Integer getLive()
+- ColorDTO getColor()
+
+
+=== Part 25 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Column {
+    java.lang.String name() default ""
+}
+
+=== Part 26 ===
+package com.commerce.backend.error.exception;
+public class InvalidArgumentException extends RuntimeException {
+    public InvalidArgumentException(String s) { super(s); }
+}
+
+=== Part 27 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductResponseConverter implements Function<Product, ProductResponse> {
+}
+
+=== Part 28 ===
+package org.reactivestreams;
+public interface Publisher <T> {
+}
+
+=== Part 29 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class CategoryDTO {
+public java.lang.String getName()
+}
+
+=== Part 30 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "add", header = "Add a Quarkus extension registry", description = "%n"
+        + "This command will add a Quarkus extension registry to the registry client configuration unless it's already present.")
+public class RegistryAddCommand extends BaseRegistryCommand {
+}
+
+=== Part 31 ===
+package com.commerce.backend.api;
+@Controller
+@RequestMapping("/api/public")
+public abstract class PublicApiController {
+}
+
+=== Part 32 ===
+package org.springframework.samples.petclinic.customers.web;
+@ResponseStatus(value = HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String message) { super(message); }
+}
+
+=== Part 33 ===
+package com.commerce.backend.converter.product;
+@Component
+public class ProductVariantResponseConverter implements Function<ProductVariant, ProductVariantResponse> {
+}
+
+=== Part 34 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "plugin", aliases = { "plug" }, header = "Configure plugins of the Quarkus CLI.", subcommands = {
+        CliPluginsList.class,
+        CliPluginsAdd.class,
+        CliPluginsRemove.class,
+        CliPluginsSync.class
+})
+public class CliPlugins implements Callable<Integer> {
+}
+
+=== Part 35 ===
+package org.springframework.samples.petclinic.api.application;
+@Component
+public class VisitsServiceClient {
+    // Could be changed for testing purpose
+    private String hostname = "http://visits-service/";
+    private final WebClient.Builder webClientBuilder;
+    public Mono<Visits> getVisitsForPets(final List<Integer> petIds) {
+        return webClientBuilder.build()
+            .get()
+            .uri(hostname + "pets/visits?petId={petId}", joinIds(petIds))
+            .retrieve()
+            .bodyToMono(Visits.class);
+    }
+    private String joinIds(List<Integer> petIds) {
+        return petIds.stream().map(Object::toString).collect(joining(","));
+    }
+    void setHostname(String hostname)
+public VisitsServiceClient(org.springframework.web.reactive.function.client.WebClient.Builder webClientBuilder)
+}
+
+=== Part 36 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 37 ===
+package com.commerce.backend.service.cache;
+public interface ProductVariantCacheService {
+}
+
+=== Part 38 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "add", header = "Add extension(s) to this project.")
+public class ProjectExtensionsAdd extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 39 ===
+package io.quarkus.cli.image;
+@CommandLine.Command(name = "buildpack", sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Build a container image using Buildpack.", description = "%n"
+        + "This command will build or push a container image for the project, using Buildpack.", footer = "%n"
+                + "For example (using default values), it will create a container image using with REPOSITORY='${user.name}/<project.artifactId>' and TAG='<project.version>'.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "Options:%n")
+public class Buildpack extends BaseImageSubCommand {
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

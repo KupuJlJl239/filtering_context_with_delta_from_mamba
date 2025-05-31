@@ -1,0 +1,224 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package io.quarkus.arc.impl;
+/**
+ * Builds a special {@link TypeResolver} capable of resolving type variables by using a combination of two type hierarchies.
+
+ * The special resolver is only necessary for situations where the type of the event object contains an unresolved type variable
+ * which cannot be resolved using
+ * the selected event type because the selected event type is a subtype of the event object.
+
+ * For example:
+
+ * private Event<List<String>> event;
+
+ * event.fire(new ArrayList<String>());
+
+ * The event object type is {@link ArrayList} (raw type due to type erasure) The selected type is List<String>
+
+ * We cannot simply infer the correct type (ArrayList<String>) from the runtime type nor from the selected type. What this
+ * special resolver does is that it
+ * combines the following type variable assignments:
+
+ * L -> E
+
+ * L -> String
+
+ * and resolves E to String. The resolver is capable of doing it recursively for parameterized types.
+
+ */
+class EventObjectTypeResolverBuilder {
+    private final Map<TypeVariable<?>, Type> selectedTypeVariables;
+    private final Map<TypeVariable<?>, Type> eventTypeVariables;
+    private final Map<TypeVariable<?>, Type> resolvedTypes;
+    public EventObjectTypeResolverBuilder(Map<TypeVariable<?>, Type> selectedTypeVariables,
+            Map<TypeVariable<?>, Type> eventTypeVariables) {
+        this.selectedTypeVariables = selectedTypeVariables;
+        this.eventTypeVariables = eventTypeVariables;
+        this.resolvedTypes = new HashMap<TypeVariable<?>, Type>();
+    }
+    public TypeResolver build() {
+        resolveTypeVariables();
+
+        Map<TypeVariable<?>, Type> mergedVariables = new HashMap<TypeVariable<?>, Type>(eventTypeVariables);
+        mergedVariables.putAll(selectedTypeVariables);
+        mergedVariables.putAll(resolvedTypes);
+
+        return new TypeResolver(mergedVariables);
+    }
+    protected void resolveTypeVariables() {
+        for (Entry<TypeVariable<?>, Type> entry : eventTypeVariables.entrySet()) {
+            // the event object does not have this variable resolved
+            TypeVariable<?> key = entry.getKey();
+            Type typeWithTypeVariables = entry.getValue();
+            Type value = selectedTypeVariables.get(key);
+            if (value == null) {
+                continue;
+            }
+            resolveTypeVariables(typeWithTypeVariables, value);
+        }
+    }
+    protected void resolveTypeVariables(Type type1, Type type2) {
+        if (type1 instanceof TypeVariable<?>) {
+            resolveTypeVariables((TypeVariable<?>) type1, type2);
+        }
+        if (isParameterizedType(type1)) {
+            resolveTypeVariables(asParameterizedType(type1), type2);
+        }
+    }
+    protected void resolveTypeVariables(TypeVariable<?> type1, Type type2) {
+        if (type2 instanceof TypeVariable) {
+            // we cannot resolve this
+            return;
+        }
+        resolvedTypes.put(type1, type2);
+    }
+    protected void resolveTypeVariables(ParameterizedType type1, Type type2) {
+        if (isParameterizedType(type2)) {
+            Type[] type1Arguments = type1.getActualTypeArguments();
+            Type[] type2Arguments = asParameterizedType(type2).getActualTypeArguments();
+            if (type1Arguments.length == type2Arguments.length) {
+                for (int i = 0; i < type1Arguments.length; i++) {
+                    resolveTypeVariables(type1Arguments[i], type2Arguments[i]);
+                }
+            }
+        }
+    }
+    public Map<TypeVariable<?>, Type> getResolvedTypes() { return resolvedTypes; }
+}
+
+**Test scenarios (4 total):**
+0) Verify that when both selected and event type variable mappings include resolvable entries, the build operation creates a TypeResolver with the merged and resolved mappings
+Steps: Given a system state where the resolver builder is initialized with two maps:
+  | key | value                      |
+  | --- | -------------------------- |
+  | A   | a parameterized type value |
+And a corresponding selected mapping defined as:
+  | key | value                      |
+  | --- | -------------------------- |
+  | A   | a concrete type value      |
+When the build operation is invoked on the resolver builder
+Then the returned TypeResolver should contain a merged mapping that includes:
+  | key | value                      |
+  | --- | -------------------------- |
+  | A   | a concrete type value      |
+And the resolved mapping should reflect that type variable A has been correctly replaced with its concrete type
+
+1) Verify that when an event type variable exists without a corresponding resolution in the selected mappings, the build operation preserves the original event type mapping
+Steps: Given that the resolver builder is initialized with an event type variable mapping containing a key with an associated parameterized type value
+And the selected type variable mapping is missing an entry for that key
+When the build operation is invoked on the resolver builder
+Then the resulting TypeResolver should include the original event type variable mapping for that key without any additional resolution
+
+2) Verify that when nested parameterized types are provided, the resolver recursively resolves type variables using corresponding entries from the selected mapping
+Steps: Given a scenario where the event type variable mapping includes a parameterized type with nested type variables (for example, a generic type with unresolved inner type variables)
+And the selected type variable mapping provides concrete types for the nested type variables
+When the build operation is executed on the initialized builder
+Then the resulting TypeResolver should have recursively resolved all nested type variables resulting in a complete mapping where the inner type variables are replaced with the provided concrete types
+
+3) Verify that when both the selected and event type variable maps are empty, the build operation returns a TypeResolver with an empty mapping
+Steps: Given a system state where the resolver builder is initialized with both the selected and event type variable mappings as empty maps
+When the build operation is invoked on the resolver builder
+Then the returned TypeResolver should contain an empty mapping indicating no type variable resolutions occurred
+
+
+
+**Context parts (0-7):**
+
+=== Part 0 ===
+Class `Mono` declaration:
+public abstract class Mono <T> implements CorePublisher<T>
+The class uses the following imports:
+- from package org.reactivestreams: Publisher
+- from package reactor.core.publisher: Mono
+- from package reactor.core: CorePublisher
+The class has following members:
+public methods:
+- final <R> Mono<R> flatMap(Function<? super T,? extends Mono<? extends R>> transformer)
+- final <R> Mono<R> map(Function<? super T,? extends R> mapper)
+- final <V> Mono<V> transform(Function<? super Mono<T>,? extends Publisher<V>> transformer)
+- static <T> Mono<T> just(T data)
+fields:
+- static final BiPredicate EQUALS_BIPREDICATE;
+
+
+=== Part 1 ===
+class _Dummy_ {
+public static class __Array__<T> {
+ public final int length;
+}
+}
+
+=== Part 2 ===
+package io.quarkus.arc.impl;
+final class TypeCachePollutionUtils {
+    static boolean isParameterizedType(final Object o) {
+        //Check for ParameterizedTypeImpl first, as it's very likely going
+        //to be one; this prevents some cases of type cache pollution (see JDK-8180450).
+        if (o instanceof ParameterizedTypeImpl) {
+            return true;
+        }
+        return (o instanceof ParameterizedType);
+    }
+    static ParameterizedType asParameterizedType(final Object o) {
+        //Check for ParameterizedTypeImpl first, as it's very likely going
+        //to be one; this prevents some cases of type cache pollution (see JDK-8180450).
+        if (o instanceof ParameterizedTypeImpl) {
+            //N.B. it's crucial for the purposes of this optimisation that
+            //we cast the to concrete type, not to the interface.
+            return (ParameterizedTypeImpl) o;
+        }
+        return (ParameterizedType) o;
+    }
+}
+
+=== Part 3 ===
+package org.springframework.web.reactive.function.client;
+S extends org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<?> {
+}
+
+=== Part 4 ===
+package io.quarkus.arc.impl;
+public class ParameterizedTypeImpl implements ParameterizedType, Serializable {
+}
+
+=== Part 5 ===
+package com.commerce.backend.converter.cart;
+@Component
+public class CartResponseConverter implements Function<Cart, CartResponse> {
+}
+
+=== Part 6 ===
+package io.quarkus.arc.impl;
+/**
+ * This code was mainly copied from Weld codebase.
+ */
+class TypeResolver {
+    private final Map<TypeVariable<?>, Type> resolvedTypeVariables;
+    public TypeResolver(Map<TypeVariable<?>, Type> resolvedTypeVariables) {
+        this.resolvedTypeVariables = resolvedTypeVariables;
+    }
+    public Map<TypeVariable<?>, Type> getResolvedTypeVariables()
+}
+
+=== Part 7 ===
+package com.commerce.backend.validator;
+public class CustomEmailValidator implements ConstraintValidator<CustomEmail, String> {
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

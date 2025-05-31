@@ -1,0 +1,206 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package org.springframework.samples.petclinic.api.application;
+@Component
+public class VisitsServiceClient {
+    // Could be changed for testing purpose
+    private String hostname = "http://visits-service/";
+    private final WebClient.Builder webClientBuilder;
+    public Mono<Visits> getVisitsForPets(final List<Integer> petIds) {
+        return webClientBuilder.build()
+            .get()
+            .uri(hostname + "pets/visits?petId={petId}", joinIds(petIds))
+            .retrieve()
+            .bodyToMono(Visits.class);
+    }
+    private String joinIds(List<Integer> petIds) {
+        return petIds.stream().map(Object::toString).collect(joining(","));
+    }
+    void setHostname(String hostname) { this.hostname = hostname; }
+public VisitsServiceClient(org.springframework.web.reactive.function.client.WebClient.Builder webClientBuilder)
+}
+
+**Test scenarios (1 total):**
+0) 1: Verify that when a valid list of pet identifiers is provided, the visits service client retrieves the corresponding visit details from the external visits service
+Steps: Given the visits service client is configured with the default external endpoint and a properly initialized web client builder
+And the external visits service is operational and expected to return visit details for valid pet identifiers
+When a user requests the visit details by providing a list of pet identifiers as input
+Then the system should construct a request URI that correctly joins the provided pet identifiers into a comma-separated string
+And the external visits service should respond with a collection of visit details where each visit includes an identifier, an associated pet identifier, a date, and a description
+
+
+
+**Context parts (0-13):**
+
+=== Part 0 ===
+package com.commerce.backend.model.dto;
+@Builder
+public class DiscountDTO {
+    private Integer discountPercent;
+    private Integer status;
+public java.lang.Integer getDiscountPercent()
+public java.lang.Integer getStatus()
+}
+
+=== Part 1 ===
+package reactor.core;
+public interface CorePublisher <T> extends org.reactivestreams.Publisher<T> {
+}
+
+=== Part 2 ===
+Class `ProductVariant` declaration:
+@Entity
+@Table(name = "product_variant")
+public class ProductVariant
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Color, Product
+The class has following members:
+public methods:
+- ProductVariant()
+- void setId(Long id)
+- void setProduct(Product product)
+- void setColor(Color color)
+- void setWidth(String width)
+- void setHeight(String height)
+- void setComposition(String composition)
+- void setPrice(Float price)
+- void setCargoPrice(Float cargoPrice)
+- void setTaxPercent(Float taxPercent)
+- void setImage(String image)
+- void setThumb(String thumb)
+- void setStock(Integer stock)
+- void setSellCount(Integer sellCount)
+- void setLive(Integer live)
+
+
+=== Part 3 ===
+package reactor.core.publisher;
+public abstract class Mono <T> implements reactor.core.CorePublisher<T> {
+    static final java.util.function.BiPredicate EQUALS_BIPREDICATE;
+}
+
+=== Part 4 ===
+package org.springframework.web.reactive.function.client;
+S extends org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<?> {
+}
+
+=== Part 5 ===
+package org.reactivestreams;
+public interface Publisher <T> {
+}
+
+=== Part 6 ===
+package org.springframework.samples.petclinic.api.dto;
+public class Visits {
+public java.util.List<org.springframework.samples.petclinic.api.dto.VisitDetails> getItems()
+}
+
+=== Part 7 ===
+Class `com.commerce.backend.model.entity.Product` declaration:
+@Entity
+@Table(name = "product")
+public class Product
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant, ProductCategory
+The class has following members:
+public methods:
+- Product()
+- void setId(Long id)
+- void setProductCategory(ProductCategory productCategory)
+- void setProductVariantList(List<ProductVariant> productVariantList)
+- void setSku(String sku)
+- void setName(String name)
+- void setUrl(String url)
+- void setLongDesc(String longDesc)
+- void setDateCreated(Date dateCreated)
+- void setLastUpdated(Date lastUpdated)
+- void setUnlimited(Integer unlimited)
+- Long getId()
+- ProductCategory getProductCategory()
+- List<ProductVariant> getProductVariantList()
+- String getSku()
+- String getName()
+- String getUrl()
+- String getLongDesc()
+- Date getDateCreated()
+- Date getLastUpdated()
+- Integer getUnlimited()
+
+
+=== Part 8 ===
+package javax.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 9 ===
+Class `org.springframework.samples.petclinic.api.dto.VisitDetails` declaration:
+public class VisitDetails
+The class has following members:
+public methods:
+- Integer getId()
+- Integer getPetId()
+- String getDate()
+- String getDescription()
+
+
+=== Part 10 ===
+package org.springframework.web.reactive.function.client;
+public interface WebClient {
+    org.springframework.web.reactive.function.client.WebClient.RequestHeadersUriSpec<?> get()
+    static interface Builder {
+        org.springframework.web.reactive.function.client.WebClient build()
+    }
+    static interface RequestHeadersUriSpec <S extends org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<S>> extends org.springframework.web.reactive.function.client.WebClient.UriSpec<S>, org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<S> {
+    }
+    static interface ResponseSpec {
+        <T> reactor.core.publisher.Mono<T> bodyToMono(java.lang.Class<T> elementClass)
+    }
+    static interface RequestHeadersSpec <S extends org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<S>> {
+        org.springframework.web.reactive.function.client.WebClient.ResponseSpec retrieve()
+    }
+    static interface UriSpec <S extends org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec<?>> {
+        S uri(java.lang.String uri, java.lang.Object... uriVariables)
+    }
+}
+
+=== Part 11 ===
+package com.commerce.backend.converter.cart;
+@Component
+public class CartResponseConverter implements Function<Cart, CartResponse> {
+}
+
+=== Part 12 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "update", aliases = { "up",
+        "upgrade" }, sortOptions = false, showDefaultValues = true, mixinStandardHelpOptions = false, header = "Suggest recommended project updates with the possibility to apply them.", headerHeading = "%n", commandListHeading = "%nCommands:%n", synopsisHeading = "%nUsage: ", parameterListHeading = "%n", optionListHeading = "%nOptions:%n")
+public class Update extends BaseBuildCommand implements Callable<Integer> {
+}
+
+=== Part 13 ===
+package com.commerce.backend.service.cache;
+@Service
+@CacheConfig(cacheNames = "product_variant")
+public class ProductVariantCacheServiceImpl implements ProductVariantCacheService {
+    @Autowired
+    public ProductVariantCacheServiceImpl(ProductVariantRepository productVariantRepository)
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

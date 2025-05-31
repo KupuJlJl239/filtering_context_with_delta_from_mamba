@@ -1,0 +1,272 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package com.commerce.backend.service.cache;
+@Service
+@CacheConfig(cacheNames = "product")
+public class ProductCacheServiceImpl implements ProductCacheService {
+    private final ProductRepository productRepository;
+    @Autowired
+    public ProductCacheServiceImpl(ProductRepository productRepository) {
+        this.productRepository = productRepository;
+    }
+    @Override
+    @Cacheable(key = "#url")
+    public Product findByUrl(String url) {
+        return productRepository.findByUrl(url).orElse(null);
+    }
+    @Override
+    @Cacheable(key = "#root.methodName", unless = "#result.size()==0")
+    public List<Product> findTop8ByOrderByDateCreatedDesc() {
+        return productRepository.findTop8ByOrderByDateCreatedDesc();
+    }
+    @Override
+    @Cacheable(key = "{#productCategory.name,#id}", unless = "#result.size()==0")
+    public List<Product> getRelatedProducts(ProductCategory productCategory, Long id) {
+        List<Product> productList = productRepository.findTop8ByProductCategoryAndIdIsNot(productCategory, id);
+        if (productList.size() < 8) {
+            productList.addAll(productRepository.findAllByProductCategoryIsNot(productCategory, PageRequest.of(0, 8 - productList.size())));
+        }
+        return productList;
+    }
+}
+
+**Test scenarios (6 total):**
+0) Verify that when a valid URL is provided, the system returns the corresponding product
+Steps: Given a product exists in the repository with a specific descriptive URL
+When a request is made to locate a product by providing that URL
+Then the system should return the product with matching details
+
+1) Verify that when an invalid or non-existent URL is provided, the system returns a null result
+Steps: Given no product is associated with a provided non-existent URL in the repository
+When a request is made to locate a product using that non-existent URL
+Then the system should return null indicating that no product was found
+
+2) Verify that when there are multiple products available, the system returns up to 8 latest products sorted by creation date
+Steps: Given several products exist in the system with various creation dates
+When a request is made to retrieve the latest products sorted in descending order by their creation dates
+Then the system should return a list containing at most 8 products with the newest products appearing first
+
+3) Verify that when no products are available, the system returns an empty list for the latest products request
+Steps: Given that the repository contains no products
+When a request is made to retrieve the latest products sorted by creation date
+Then the system should return an empty list, reflecting no available products
+
+4) Verify that when fewer than 8 related products are found in the primary search, the system supplements the list with additional products from other categories
+Steps: Given the primary search for related products by category (excluding a specific product) returns less than 8 products
+And additional products from other categories are available
+When a request is made to fetch related products for a specified category and product identifier
+Then the system should return a complete list of 8 products by merging the initial related products with other available products
+
+5) Verify that when exactly 8 related products are found in the primary search, the system returns those products without appending additional items
+Steps: Given the primary search for related products by category (excluding a specific product) returns exactly 8 products
+When a request is made to fetch related products for a specified category and product identifier
+Then the system should return exactly the 8 products found without including any extra products from other categories
+
+
+
+**Context parts (0-15):**
+
+=== Part 0 ===
+Class `com.commerce.backend.model.entity.Color` declaration:
+@Entity
+@Table(name = "color")
+public class Color
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant
+The class has following members:
+public methods:
+- Long getId()
+- List<ProductVariant> getProductVariantList()
+- String getName()
+- String getHex()
+
+
+=== Part 1 ===
+Class `ProductVariant` declaration:
+@Entity
+@Table(name = "product_variant")
+public class ProductVariant
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: Color, Product
+The class has following members:
+public methods:
+- Long getId()
+- Product getProduct()
+- Color getColor()
+- String getWidth()
+- String getHeight()
+- String getComposition()
+- Float getPrice()
+- Float getCargoPrice()
+- Float getTaxPercent()
+- String getImage()
+- String getThumb()
+- Integer getStock()
+- Integer getSellCount()
+- Integer getLive()
+
+
+=== Part 2 ===
+Class `com.commerce.backend.model.entity.ProductCategory` declaration:
+@Entity
+@Table(name = "product_category")
+public class ProductCategory
+The class has following members:
+public methods:
+- ProductCategory()
+- void setId(Long id)
+- void setName(String name)
+- Long getId()
+- String getName()
+
+
+=== Part 3 ===
+package reactor.core;
+public interface CorePublisher <T> extends org.reactivestreams.Publisher<T> {
+}
+
+=== Part 4 ===
+package jakarta.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 5 ===
+package org.springframework.samples.petclinic.customers.web;
+@ResponseStatus(value = HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String message) { super(message); }
+}
+
+=== Part 6 ===
+package io.quarkus.cli.plugin;
+@CommandLine.Command(name = "sync", header = "Sync (discover / purge) CLI Plugins.")
+public class CliPluginsSync extends CliPluginsBase implements Callable<Integer> {
+}
+
+=== Part 7 ===
+Class `org.springframework.samples.petclinic.vets.model.Vet` declaration:
+@Entity
+@Table(name = "vets")
+public class Vet
+The class has following members:
+public methods:
+- protected Set<Specialty> getSpecialtiesInternal()
+- @XmlElement
+    List<Specialty> getSpecialties()
+- int getNrOfSpecialties()
+- Integer getId()
+- String getFirstName()
+- String getLastName()
+
+
+=== Part 8 ===
+package com.commerce.backend.dao;
+@Repository
+public interface ProductRepository extends PagingAndSortingRepository<Product, Long> {
+    Optional<Product> findByUrl(String url)
+    List<Product> findTop8ByOrderByDateCreatedDesc()
+    List<Product> findTop8ByProductCategoryAndIdIsNot(ProductCategory productCategory, Long id)
+    List<Product> findAllByProductCategoryIsNot(ProductCategory productCategory, Pageable pageable)
+}
+
+=== Part 9 ===
+package io.quarkus.arc.impl;
+final class TypeCachePollutionUtils {
+    static boolean isParameterizedType(final Object o) {
+        //Check for ParameterizedTypeImpl first, as it's very likely going
+        //to be one; this prevents some cases of type cache pollution (see JDK-8180450).
+        if (o instanceof ParameterizedTypeImpl) {
+            return true;
+        }
+        return (o instanceof ParameterizedType);
+    }
+    static ParameterizedType asParameterizedType(final Object o) {
+        //Check for ParameterizedTypeImpl first, as it's very likely going
+        //to be one; this prevents some cases of type cache pollution (see JDK-8180450).
+        if (o instanceof ParameterizedTypeImpl) {
+            //N.B. it's crucial for the purposes of this optimisation that
+            //we cast the to concrete type, not to the interface.
+            return (ParameterizedTypeImpl) o;
+        }
+        return (ParameterizedType) o;
+    }
+}
+
+=== Part 10 ===
+Class `com.commerce.backend.model.entity.Product` declaration:
+@Entity
+@Table(name = "product")
+public class Product
+The class uses the following imports:
+- from package com.commerce.backend.model.entity: ProductVariant, ProductCategory
+The class has following members:
+public methods:
+- Long getId()
+- ProductCategory getProductCategory()
+- List<ProductVariant> getProductVariantList()
+- String getSku()
+- String getName()
+- String getUrl()
+- String getLongDesc()
+- Date getDateCreated()
+- Date getLastUpdated()
+- Integer getUnlimited()
+
+
+=== Part 11 ===
+package org.springframework.samples.petclinic.customers.model;
+/**
+ * Repository class for <code>Owner</code> domain objects All method names are compliant with Spring Data naming
+ * conventions so this interface can easily be extended for Spring Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface OwnerRepository extends JpaRepository<Owner, Integer> {
+}
+
+=== Part 12 ===
+package jakarta.persistence;
+public enum FetchType {
+ EAGER
+}
+
+=== Part 13 ===
+package javax.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+=== Part 14 ===
+package com.commerce.backend.service.cache;
+public interface ProductCacheService {
+    List<Product> getRelatedProducts(ProductCategory productCategory, Long id)
+}
+
+=== Part 15 ===
+package javax.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]

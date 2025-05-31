@@ -1,0 +1,190 @@
+
+Your task is to select EXACTLY the context parts needed to implement the test scenarios for the provided code.
+
+**Rules:**
+1. Analyze the code under test and test scenarios carefully
+2. Select context parts that contain:
+   - Data structures, required for implementing test scenarios
+   - Functions / methods of classes, required for implementing test scenarios
+   - Any other information, required for implementing test scenarios
+3. Exclude:
+   - Unrelated components (even if similar)
+   - Low-level implementation details
+   - Duplicate information
+4. Return ONLY Python list of selected part numbers, like [1, 3, 4]
+
+**Code to test:**
+package org.springframework.samples.petclinic.visits.web;
+@RestController
+@Slf4j
+@Timed("petclinic.visit")
+class VisitResource {
+    private final VisitRepository visitRepository;
+    @PostMapping("owners/*/pets/{petId}/visits")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Visit create(
+        @Valid @RequestBody Visit visit,
+        @PathVariable("petId") @Min(1) int petId) {
+
+        visit.setPetId(petId);
+        log.info("Saving visit {}", visit);
+        return visitRepository.save(visit);
+    }
+    @GetMapping("owners/*/pets/{petId}/visits")
+    public List<Visit> read(@PathVariable("petId") @Min(1) int petId) {
+        return visitRepository.findByPetId(petId);
+    }
+    @GetMapping("pets/visits")
+    public Visits read(@RequestParam("petId") List<Integer> petIds) {
+        final List<Visit> byPetIdIn = visitRepository.findByPetIdIn(petIds);
+        return new Visits(byPetIdIn);
+    }
+    static class Visits {
+public java.util.List<org.springframework.samples.petclinic.visits.model.Visit> getItems()
+    }
+public VisitResource(org.springframework.samples.petclinic.visits.model.VisitRepository visitRepository)
+}
+
+**Test scenarios (1 total):**
+0) 1: Verify that a new pet visit is successfully created and can be retrieved for a valid pet identifier
+Steps: Given a pet exists in the system with a valid identifier greater than zero
+And the system is prepared to accept visit entries with all required valid information
+When a user submits a request to add a new visit with valid details (including an appropriate date and description) for the pet using its valid identifier
+Then the system should store the visit, associate it with the provided pet identifier, and return the visit information with a status indicating creation was successful
+And when the user requests to view visits for that pet using its valid identifier
+Then the system should return a list of visits that includes the newly created visit
+
+
+
+**Context parts (0-9):**
+
+=== Part 0 ===
+package com.commerce.backend.model.request.cart;
+public class AddToCartRequest {
+    @NotNull
+    @Min(1)
+    private Long productVariantId;
+    @NotNull
+    @Min(1)
+    private Integer amount;
+public AddToCartRequest()
+public void setProductVariantId(java.lang.Long productVariantId)
+public void setAmount(java.lang.Integer amount)
+}
+
+=== Part 1 ===
+package org.springframework.samples.petclinic.visits.model;
+/**
+ * Repository class for <code>Visit</code> domain objects All method names are compliant with Spring Data naming conventions so this interface can easily be extended for Spring
+ * Data See here: http://static.springsource.org/spring-data/jpa/docs/current/reference/html/jpa.repositories.html#jpa.query-methods.query-creation
+
+ */
+public interface VisitRepository extends JpaRepository<Visit, Integer> {
+    List<Visit> findByPetId(int petId)
+    List<Visit> findByPetIdIn(Collection<Integer> petIds)
+}
+
+=== Part 2 ===
+package io.quarkus.cli;
+@CommandLine.Command(name = "list", header = "List enabled Quarkus registries", description = "%n"
+        + "This command will list currently enabled Quarkus extension registries.")
+public class RegistryListCommand extends BaseRegistryCommand {
+}
+
+=== Part 3 ===
+package com.commerce.backend.dao;
+@Repository
+public interface VerificationTokenRepository extends CrudRepository<VerificationToken, Long> {
+    Optional<VerificationToken> findByToken(String token)
+}
+
+=== Part 4 ===
+Class `com.commerce.backend.model.dto.ProductVariantDTO` declaration:
+@Builder
+public class ProductVariantDTO
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: ColorDTO
+The class has following members:
+public methods:
+- Long getId()
+- Float getPrice()
+- String getThumb()
+- Integer getStock()
+- ColorDTO getColor()
+
+
+=== Part 5 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Column {
+    java.lang.String name() default ""
+}
+
+=== Part 6 ===
+package jakarta.persistence;
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Table {
+    java.lang.String name() default ""
+}
+
+=== Part 7 ===
+Class `org.springframework.samples.petclinic.visits.model.Visit` declaration:
+@Entity
+@Table(name = "visits")
+@Builder(builderMethodName = "visit")
+public class Visit
+The class has following members:
+public methods:
+- Visit(Integer id,Date date,String description,int petId)
+- Visit()
+- void setId(Integer id)
+- void setDate(Date date)
+- void setDescription(String description)
+- void setPetId(int petId)
+- Integer getId()
+- Date getDate()
+- String getDescription()
+- int getPetId()
+fields:
+- @Column(name = "pet_id")
+    private int petId;
+
+
+=== Part 8 ===
+Class `com.commerce.backend.model.response.order.OrderResponse` declaration:
+public class OrderResponse
+The class uses the following imports:
+- from package com.commerce.backend.model.dto: OrderDetailDTO, DiscountDTO
+The class has following members:
+public methods:
+- Long getId()
+- String getShipName()
+- String getShipAddress()
+- String getBillingAddress()
+- String getCity()
+- String getState()
+- String getZip()
+- String getCountry()
+- String getPhone()
+- Float getTotalPrice()
+- Float getTotalCargoPrice()
+- Long getDate()
+- Integer getShipped()
+- String getCargoFirm()
+- String getTrackingNumber()
+- DiscountDTO getDiscount()
+- List<OrderDetailDTO> getOrderItems()
+
+
+=== Part 9 ===
+package jakarta.persistence;
+@java.lang.annotation.Documented
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE})
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+public @interface Entity {
+}
+
+
+Remember: Your response MUST be ONLY the list, e.g. [1, 3, 5]
